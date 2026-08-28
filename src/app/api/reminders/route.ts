@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       if (remaining <= 0) continue;
       const kind = `${dateValue}-due-${days}`;
       const [sent] = await sql`select id from reminder_logs where loan_id = ${loan.id} and reminder_kind = ${kind}`;
-      if (!sent) reminders.push({ id: loan.id, borrower: loan.borrower, dueDate: due.toLocaleDateString("en-US", { month: "short", day: "numeric" }), remaining, interest, days, kind });
+      if (!sent) { const [year, month, day] = dateValue.split("-"); reminders.push({ id: loan.id, borrower: loan.borrower, dueDate: `${day}/${month}/${year.slice(-2)}`, remaining, interest, days, kind }); }
     }
     if (!reminders.length) return NextResponse.json({ sent: 0 });
     const text = ["<b>KamJey payment reminders</b>", "", ...reminders.map((reminder) => `• <b>${escapeHtml(reminder.borrower)}</b> — interest ${money(reminder.interest)}\n  Balance ${money(reminder.remaining)} · due ${reminder.dueDate} · ${reminder.days === 0 ? "today" : `in ${reminder.days} day(s)`}`)].join("\n");
