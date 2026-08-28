@@ -1,0 +1,8 @@
+# Local credentials and runtime output
+.env.local
+.env*.local
+.next/
+node_modules/
+
+# Logs
+npm-debug.log*
