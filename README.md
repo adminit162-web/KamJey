@@ -2,6 +2,16 @@
 
 Personal loan dashboard built with Next.js.
 
+## Monthly loan model
+
+- A loan's first payment anniversary is one calendar month after its start date.
+- Interest accrues monthly on the remaining principal.
+- Payments cover accrued interest first; the remainder reduces principal.
+- Borrowers may pay interest only, interest plus any principal amount, or the full balance.
+- For start dates on the 29th-31st, shorter months use their final calendar day.
+
+Run `db/schema.sql` in the Supabase SQL editor after pulling schema changes. The script can upgrade an existing KamJey database without deleting its records.
+
 ## Telegram reminders
 
 1. Create a bot with [@BotFather](https://t.me/BotFather) and copy its token.
