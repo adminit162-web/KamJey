@@ -86,7 +86,7 @@
 .portfolio-table-head,
 .portfolio-row {
   display: grid;
-  grid-template-columns: minmax(190px, 1.3fr) minmax(190px, 1.15fr) minmax(125px, .72fr) minmax(145px, .9fr) minmax(105px, .62fr) 112px;
+  grid-template-columns: minmax(190px, 1.3fr) minmax(190px, 1.15fr) minmax(125px, .72fr) minmax(145px, .9fr) minmax(175px, .9fr) 112px;
   gap: 20px;
   align-items: center;
 }
@@ -374,7 +374,7 @@
     display: block;
   }
 
-  .portfolio-status {
+.portfolio-status {
     align-self: end;
   }
 
@@ -389,6 +389,20 @@
     right: auto;
     left: 0;
   }
+}
+
+.portfolio-status .status-pill.paid-cycle { background:#e2f2e9;color:#246b49; }
+.portfolio-status>small { display:block;margin-top:6px;color:#657585;font-size:10px;white-space:nowrap; }
+.portfolio-table-head>span:nth-child(5) { white-space:nowrap; }
+
+@media (min-width:1281px) {
+  .paid-cycle-view .portfolio-table-head,
+  .paid-cycle-view .portfolio-row { grid-template-columns:minmax(190px,1.3fr) minmax(190px,1.15fr) minmax(125px,.72fr) minmax(145px,.9fr) minmax(175px,.9fr); }
+}
+
+@media (min-width:1101px) and (max-width:1280px) {
+  .paid-cycle-view .portfolio-table-head,
+  .paid-cycle-view .portfolio-row { grid-template-columns:minmax(180px,1.2fr) minmax(170px,1fr) 140px 180px; }
 }
 
 @media (max-width: 700px) {
@@ -440,7 +454,7 @@
 
   .portfolio-balance::before { content: "Outstanding"; }
   .portfolio-interest::before { content: "Interest due"; }
-  .portfolio-due::before { content: "Next payment"; }
+  .portfolio-due::before { content: "Next interest payment"; }
   .portfolio-status::before { content: "Status"; }
 
   .portfolio-balance::before,

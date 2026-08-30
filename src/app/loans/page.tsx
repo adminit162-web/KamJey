@@ -46,13 +46,13 @@ export default function LoansPage() {
     <PageTitle eyebrow={t("Portfolio")} title={t("Loans")} copy={t("Review every active, overdue and completed loan.")}/>
     <div className="page-toolbar">
       <div className="filter-tabs">{["All", "Interest-free", "Active", "Overdue", "Paid"].map((item) =>
-        <button key={item} onClick={() => setFilter(item)} className={filter === item ? "active" : ""}>{t(item)}<span>{loans.filter((loan) => matchesFilter(loan, item)).length}</span></button>
+        <button key={item} onClick={() => setFilter(item)} className={filter === item ? "active" : ""}>{t(item === "Active" ? "Current" : item === "Paid" ? "Paid off" : item)}<span>{loans.filter((loan) => matchesFilter(loan, item)).length}</span></button>
       )}</div>
       <input className="search-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("Search borrower…")}/>
     </div>
     {error && <p className="database-notice">{error}</p>}
     <div className="data-card">
-      <div className="data-table loans-table data-head">{["Reference", "Borrower", "Total borrowed", "Principal left", "Interest due", "Next payment", "Status"].map((label) => <span key={label}>{t(label)}</span>)}</div>
+      <div className="data-table loans-table data-head">{["Reference", "Borrower", "Total borrowed", "Principal left", "Interest", "Next payment", "Payment status"].map((label) => <span key={label}>{t(label)}</span>)}</div>
       {visible.length ? visible.map((loan) => {
         const topups = Number(loan.total_topups);
         return <div className="data-table loans-table" key={loan.id}>
@@ -62,7 +62,7 @@ export default function LoansPage() {
           <strong className="balance-emphasis">{money(Number(loan.current_principal))}</strong>
           <span className={Number(loan.rate) === 0 ? "interest-free-value" : ""}>{money(interestDue(loan))}{Number(loan.rate) === 0 && <small className="table-subtext">{t("Interest-free")}</small>}</span>
           <span>{date(loan.interest_due_since || loan.next_payment_date)}</span>
-          <span className={`status-pill ${viewStatus(loan).toLowerCase()}`}>{t(viewStatus(loan))}</span>
+          <span className={`status-pill ${viewStatus(loan).toLowerCase()}`}>{t(viewStatus(loan) === "Active" ? "Current" : viewStatus(loan) === "Paid" ? "Paid off" : viewStatus(loan))}</span>
         </div>;
       }) : <Empty text={t("No loans match this view.")}/>}
     </div>

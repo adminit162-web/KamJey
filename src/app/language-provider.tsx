@@ -23,6 +23,10 @@ const km: Record<string, string> = {
   "Actions": "សកម្មភាព", "Edit": "កែប្រែ", "Delete": "លុប", "Locked": "បានចាក់សោ", "EDIT ADDED FUNDS": "កែប្រែប្រាក់បន្ថែម", "The loan principal and prorated interest will be recalculated automatically.": "ប្រាក់ដើម និងការប្រាក់គិតតាមថ្ងៃនឹងត្រូវគណនាឡើងវិញដោយស្វ័យប្រវត្តិ។", "Delete this added-funds record? The loan balance and interest will be recalculated.": "លុបកំណត់ត្រាប្រាក់បន្ថែមនេះមែនទេ? សមតុល្យកម្ចី និងការប្រាក់នឹងត្រូវគណនាឡើងវិញ។",
   "Changing the amount or rate recalculates principal and interest. Financial terms are locked after payments, added funds, or accrued interest exist.": "ការផ្លាស់ប្តូរចំនួនប្រាក់ ឬអត្រា នឹងគណនាប្រាក់ដើម និងការប្រាក់ឡើងវិញ។ លក្ខខណ្ឌហិរញ្ញវត្ថុនឹងត្រូវចាក់សោ បន្ទាប់ពីមានការទូទាត់ ប្រាក់បន្ថែម ឬការប្រាក់ដែលបានគិត។",
   "Changing the amount or rate recalculates principal and accrued interest. Financial terms are locked after payments or added funds exist.": "ការផ្លាស់ប្តូរចំនួនប្រាក់ ឬអត្រា នឹងគណនាប្រាក់ដើម និងការប្រាក់ដែលបានគិតឡើងវិញ។ លក្ខខណ្ឌហិរញ្ញវត្ថុនឹងត្រូវចាក់សោ បន្ទាប់ពីមានការទូទាត់ ឬប្រាក់បន្ថែម។",
+  "Current": "បានបង់បច្ចុប្បន្ន", "Paid off": "បានសងរួចរាល់", "Next interest": "ការប្រាក់បន្ទាប់", "Next interest: {amount} · {rate}%": "ការប្រាក់បន្ទាប់៖ {amount} · {rate}%", "Interest paid; nothing is currently due": "បានបង់ការប្រាក់រួច មិនមានប្រាក់ត្រូវបង់ឥឡូវនេះ", "Payment status": "ស្ថានភាពទូទាត់",
+  "Paid this cycle": "បានបង់វគ្គនេះ", "Paid {amount} this cycle · next {next}": "បានបង់ {amount} វគ្គនេះ · បន្ទាប់ {next}",
+  "{principal} principal · {interest} current interest": "ប្រាក់ដើម {principal} · ការប្រាក់បច្ចុប្បន្ន {interest}", "Paid {amount} for {month}": "បានបង់ {amount} សម្រាប់ខែ {month}", "Interest paid": "បានបង់ការប្រាក់", "{amount} paid": "បានបង់ {amount}", "Paid {amount} on {date}": "បានបង់ {amount} on {date}",
+  "{amount} principal": "ប្រាក់ដើម {amount}", "Next interest payment": "ត្រូវទូទាត់ខែបន្ទាប់",
 };
 
 type ContextValue = { language: Language; setLanguage: (language: Language) => void; t: (key: string, variables?: Variables) => string; locale: string };
