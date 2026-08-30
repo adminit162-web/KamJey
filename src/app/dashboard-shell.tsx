@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 const navigation = [
@@ -13,10 +13,11 @@ const navigation = [
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   if (pathname === "/login") return children;
 
-  async function logout() { await fetch("/api/auth/logout", { method: "POST" }); window.location.assign("/login"); }
+  async function logout() { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); router.refresh(); }
 
   return <div className="app-shell">
     <button className="mobile-menu-button" onClick={() => setOpen(true)} aria-label="Open navigation">☰</button>

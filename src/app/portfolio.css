@@ -1,0 +1,349 @@
+/* Compact loan portfolio overview. Kept isolated from the legacy ledger styles. */
+.portfolio-heading {
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.portfolio-heading > span {
+  color: #788692;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.portfolio-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.portfolio-filters {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #e8edf1;
+}
+
+.portfolio-filters button {
+  border: 0;
+  border-radius: 7px;
+  padding: 8px 12px;
+  background: transparent;
+  color: #5f6f7c;
+  font: 700 12px inherit;
+  cursor: pointer;
+}
+
+.portfolio-filters button.active {
+  background: #fff;
+  color: #243f57;
+  box-shadow: 0 2px 8px #233a4c14;
+}
+
+.portfolio-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(290px, 100%);
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #d6e0e6;
+  border-radius: 9px;
+  background: #fff;
+  color: #6f7e8a;
+}
+
+.portfolio-search:focus-within {
+  border-color: #7290a6;
+  box-shadow: 0 0 0 3px #45698414;
+}
+
+.portfolio-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #263b4d;
+  font: 13px inherit;
+}
+
+.portfolio-search input::placeholder {
+  color: #8a969f;
+}
+
+.portfolio-table {
+  position: relative;
+  border: 1px solid #d9e2e8;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 5px 18px #263b4c08;
+  overflow: visible;
+}
+
+.portfolio-table-head,
+.portfolio-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.3fr) minmax(190px, 1.15fr) minmax(125px, .72fr) minmax(145px, .9fr) minmax(105px, .62fr) 112px;
+  gap: 20px;
+  align-items: center;
+}
+
+.portfolio-table-head {
+  padding: 13px 20px;
+  border-bottom: 1px solid #dfe6eb;
+  border-radius: 13px 13px 0 0;
+  background: #f7f9fa;
+  color: #667684;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.portfolio-row {
+  min-height: 96px;
+  padding: 15px 20px;
+  border-bottom: 1px solid #e6ecef;
+  transition: background .15s ease;
+}
+
+.portfolio-row:last-child {
+  border-bottom: 0;
+  border-radius: 0 0 13px 13px;
+}
+
+.portfolio-row:hover {
+  background: #fbfcfd;
+}
+
+.portfolio-borrower {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.portfolio-borrower .avatar {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  font-size: 13px;
+}
+
+.portfolio-borrower strong,
+.portfolio-balance strong,
+.portfolio-interest strong,
+.portfolio-due strong {
+  display: block;
+  margin: 0;
+  color: #172b3d;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.portfolio-borrower strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+}
+
+.portfolio-borrower small,
+.portfolio-balance small,
+.portfolio-interest small,
+.portfolio-due small {
+  display: block;
+  margin-top: 4px;
+  color: #71808c;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.portfolio-borrower small {
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+.portfolio-balance > strong {
+  font-size: 17px;
+}
+
+.portfolio-progress {
+  width: min(150px, 100%);
+  height: 4px;
+  margin-top: 8px;
+  border-radius: 10px;
+  background: #e7edf0;
+  overflow: hidden;
+}
+
+.portfolio-progress i {
+  display: block;
+  height: 100%;
+  border-radius: 10px;
+  background: #4e8190;
+}
+
+.portfolio-due small {
+  color: #637584;
+}
+
+.portfolio-status .status-pill {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.portfolio-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.portfolio-actions .pay-action {
+  width: 62px;
+  justify-content: center;
+}
+
+.portfolio-actions .more-trigger {
+  width: 40px;
+}
+
+.portfolio-actions .actions-menu {
+  right: 0;
+}
+
+.portfolio-actions .actions-menu button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.portfolio-actions .actions-menu button:disabled:hover {
+  background: transparent;
+}
+
+@media (max-width: 1280px) {
+  .portfolio-table-head,
+  .portfolio-row {
+    grid-template-columns: minmax(180px, 1.2fr) minmax(170px, 1fr) minmax(140px, .85fr) 108px 112px;
+  }
+
+  .portfolio-table-head > span:nth-child(3),
+  .portfolio-interest {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .portfolio-table-head {
+    display: none;
+  }
+
+  .portfolio-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 18px 24px;
+    padding: 20px;
+  }
+
+  .portfolio-borrower {
+    grid-column: 1 / -1;
+  }
+
+  .portfolio-interest {
+    display: block;
+  }
+
+  .portfolio-status {
+    align-self: end;
+  }
+
+  .portfolio-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    padding-top: 14px;
+    border-top: 1px solid #e5ebef;
+  }
+
+  .portfolio-actions .actions-menu {
+    right: auto;
+    left: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .portfolio-heading {
+    align-items: flex-start;
+  }
+
+  .portfolio-heading > span {
+    display: none;
+  }
+
+  .portfolio-toolbar {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .portfolio-search {
+    width: 100%;
+  }
+
+  .portfolio-filters {
+    overflow-x: auto;
+  }
+
+  .portfolio-filters button {
+    flex: 1;
+    white-space: nowrap;
+  }
+
+  .portfolio-row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 18px 16px;
+  }
+
+  .portfolio-borrower,
+  .portfolio-actions {
+    grid-column: auto;
+  }
+
+  .portfolio-balance,
+  .portfolio-interest,
+  .portfolio-due,
+  .portfolio-status {
+    display: grid;
+    grid-template-columns: 115px 1fr;
+    align-items: center;
+  }
+
+  .portfolio-balance::before { content: "Outstanding"; }
+  .portfolio-interest::before { content: "Monthly interest"; }
+  .portfolio-due::before { content: "Next payment"; }
+  .portfolio-status::before { content: "Status"; }
+
+  .portfolio-balance::before,
+  .portfolio-interest::before,
+  .portfolio-due::before,
+  .portfolio-status::before {
+    color: #71808c;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .portfolio-balance small,
+  .portfolio-progress,
+  .portfolio-interest small,
+  .portfolio-due small {
+    grid-column: 2;
+  }
+
+  .portfolio-status .status-pill {
+    width: max-content;
+  }
+}

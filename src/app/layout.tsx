@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./readability.css";
 import "./tailwind.css";
+import "./portfolio.css";
 import DashboardShell from "./dashboard-shell";
 
 export const metadata: Metadata = {

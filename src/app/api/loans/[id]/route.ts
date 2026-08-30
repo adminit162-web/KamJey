@@ -15,9 +15,9 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     }
     const sql = db();
     const updated = await sql.begin(async (transaction) => {
-      const [loan] = await transaction`select borrower_id, start_date from loans where id = ${id}::uuid for update`;
+      const [loan] = await transaction`select borrower_id, start_date::text as start_date from loans where id = ${id}::uuid for update`;
       if (!loan) return null;
-      if (nextPayment < String(loan.start_date).slice(0, 10)) throw new Error("Next payment cannot be before the start date.");
+      if (nextPayment < loan.start_date) throw new Error("Next payment cannot be before the start date.");
       await transaction`update borrowers set full_name = ${borrower} where id = ${loan.borrower_id}`;
       const [record] = await transaction`update loans set monthly_interest_rate = ${rate}, next_payment_date = ${nextPayment}, payment_day = extract(day from ${nextPayment}::date)::integer where id = ${id}::uuid returning id, monthly_interest_rate as rate, next_payment_date`;
       return record;
