@@ -10,3 +10,23 @@ html[data-language="km"] h1,html[data-language="km"] h2,html[data-language="km"]
 .language-switcher img { display:block;width:36px;height:22px;object-fit:cover;border-radius:3px;box-shadow:0 1px 3px #14253b35; }
 .login-language { position:fixed; top:20px; right:20px; z-index:2; }
 .login-language .language-switcher { margin:0; }
+
+/* Keep long translated forms usable within short and mobile viewports. */
+.modal {
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.modal .submit {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  box-shadow: 0 -10px 18px 8px #fff, 0 3px 8px #294f6924;
+}
+
+@media (max-width: 700px) {
+  .modal-backdrop { padding: 10px; }
+  .modal { max-height: calc(100dvh - 20px); padding: 22px 18px; }
+}
