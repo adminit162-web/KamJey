@@ -270,8 +270,10 @@
 }
 
 .portfolio-actions .pay-action {
-  width: 62px;
+  width: auto;
+  min-width: 78px;
   justify-content: center;
+  white-space: nowrap;
 }
 
 .portfolio-actions .more-trigger {
@@ -289,6 +291,56 @@
 
 .portfolio-actions .actions-menu button:disabled:hover {
   background: transparent;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: minmax(330px, 1fr) minmax(330px, 1fr) minmax(230px, .72fr);
+  gap: 17px;
+  margin: 38px 0 42px;
+}
+
+.donut-card {
+  min-height: 282px;
+  padding: 22px;
+  border: 1px solid #e3e9ed;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.donut-card-heading h2 { margin: 0 0 5px; color: #263f53; font-size: 16px; }
+.donut-card-heading p { margin: 0; color: #7a8792; font-size: 12px; }
+.donut-card-body { display: flex; align-items: center; justify-content: center; gap: 25px; margin-top: 22px; }
+.donut-chart { width: 154px; height: 154px; flex: 0 0 154px; display: grid; place-items: center; border-radius: 50%; box-shadow: inset 0 0 0 1px #fff8; }
+.donut-center { width: 104px; height: 104px; display: grid; place-content: center; gap: 4px; border-radius: 50%; background: #fff; text-align: center; box-shadow: 0 2px 8px #1d33431a; }
+.donut-center strong { color: #19364c; font-size: 19px; letter-spacing: -.45px; }
+.donut-center span { max-width: 82px; color: #7a8792; font-size: 10px; line-height: 1.3; }
+.donut-legend { min-width: 145px; display: grid; gap: 11px; }
+.donut-legend>div { display: grid; grid-template-columns: 9px 1fr auto; align-items: center; gap: 7px; color: #667582; font-size: 11px; }
+.donut-legend i { width: 8px; height: 8px; border-radius: 50%; }
+.donut-legend strong { color: #263f53; font-size: 12px; white-space: nowrap; }
+.analytics-kpis { display: grid; grid-template-rows: repeat(3, 1fr); gap: 10px; }
+.analytics-kpis .metric { min-height: 0; padding: 15px 17px; }
+.analytics-kpis .metric>strong { margin: 8px 0; font-size: 22px; }
+
+@media(max-width:1250px) {
+  .analytics-grid { grid-template-columns: 1fr 1fr; }
+  .analytics-kpis { grid-column: 1/-1; grid-template-columns: repeat(3, 1fr); grid-template-rows: auto; }
+}
+
+@media(max-width:800px) {
+  .analytics-grid { grid-template-columns: 1fr; margin: 28px 0; }
+  .analytics-kpis { grid-column: auto; grid-template-columns: 1fr; }
+}
+
+@media(max-width:440px) {
+  .donut-card-body { align-items: flex-start; gap: 18px; }
+  .donut-chart { width: 130px; height: 130px; flex-basis: 130px; }
+  .donut-center { width: 88px; height: 88px; }
+  .donut-center strong { font-size: 16px; }
+  .donut-legend { min-width: 0; }
+  .donut-legend>div { grid-template-columns: 8px 1fr; }
+  .donut-legend strong { grid-column: 2; }
 }
 
 @media (max-width: 1280px) {

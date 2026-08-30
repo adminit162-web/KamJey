@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 36" role="img" aria-label="Khmer">
+  <rect width="60" height="36" rx="3" fill="#032ea1"/>
+  <rect y="9" width="60" height="18" fill="#e00025"/>
+  <g fill="#fff" stroke="#d9d9d9" stroke-width=".45" stroke-linejoin="round">
+    <path d="M16 24h28v2H16zM18 21h24v3H18zM21 18h18v3H21z"/>
+    <path d="M22 18v-5l3-3 3 3v5h-6zm10 0v-5l3-3 3 3v5h-6z"/>
+    <path d="M27 18V9l3-5 3 5v9h-6z"/>
+    <path d="M24 15h12v6H24zM19 20l3-5v6h-3zm22 0l-3-5v6h3z"/>
+  </g>
+</svg>
