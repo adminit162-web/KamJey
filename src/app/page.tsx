@@ -10,7 +10,7 @@ type Loan = {
   id: string; loanNumber: number; borrower: string; initials: string; color: string;
   principal: number; currentPrincipal: number; accruedInterest: number; nextInterestAdjustment: number;
   interestDueSince: string | null; rate: number; start: string; nextPayment: string; paymentDay: number;
-  paid: number; interestPaid: number; principalPaid: number; paymentCount: number; currentPeriodPaid: number; lastPaymentDate: string | null;
+  paid: number; interestPaid: number; principalPaid: number; paymentCount: number; latestInterestPayment: number; latestInterestPaymentDate: string | null;
   totalTopups: number; topupHistory: BorrowingTopup[]; status: LoanStatus;
 };
 type Payment = { id: string; amount: number; interestAmount: number; principalAmount: number; paidAt: string; method: string | null; note: string | null };
@@ -43,7 +43,7 @@ function mapLoan(record: Record<string, unknown>, index: number): Loan {
     id: String(record.id), loanNumber: Number(record.loan_number), borrower: String(record.borrower), initials: initials(String(record.borrower)), color: colors[index % colors.length],
     principal: Number(record.principal), currentPrincipal: Number(record.current_principal), accruedInterest: Number(record.accrued_interest), nextInterestAdjustment: Number(record.next_interest_adjustment),
     interestDueSince: record.interest_due_since ? String(record.interest_due_since) : null, rate: Number(record.rate), start: String(record.start_date), nextPayment: String(record.next_payment_date), paymentDay: Number(record.payment_day),
-    paid: Number(record.paid), interestPaid: Number(record.interest_paid), principalPaid: Number(record.principal_paid), paymentCount: Number(record.payment_count), currentPeriodPaid: Number(record.current_period_paid), lastPaymentDate: record.last_payment_date ? String(record.last_payment_date) : null, totalTopups: Number(record.total_topups), topupHistory, status: loanStatus(String(record.status), String(record.next_payment_date), record.interest_due_since ? String(record.interest_due_since) : null),
+    paid: Number(record.paid), interestPaid: Number(record.interest_paid), principalPaid: Number(record.principal_paid), paymentCount: Number(record.payment_count), latestInterestPayment: Number(record.latest_interest_payment), latestInterestPaymentDate: record.latest_interest_payment_date ? String(record.latest_interest_payment_date) : null, totalTopups: Number(record.total_topups), topupHistory, status: loanStatus(String(record.status), String(record.next_payment_date), record.interest_due_since ? String(record.interest_due_since) : null),
   };
 }
 
@@ -113,7 +113,7 @@ export default function Home() {
     const query = loanSearch.trim().toLowerCase();
     return loans.filter((loan) => {
       const matchesSearch = !query || loan.borrower.toLowerCase().includes(query) || `kj-${String(loan.loanNumber).padStart(4, "0")}`.includes(query);
-      const paidThisCycle = loan.currentPeriodPaid > 0 && loan.accruedInterest === 0 && loan.status !== "Paid";
+      const paidThisCycle = loan.latestInterestPayment > 0 && loan.accruedInterest === 0 && loan.status !== "Paid";
       const matchesFilter = loanFilter === "All" || loanFilter === "Attention" && (loan.status === "Due soon" || loan.status === "Overdue") || loanFilter === "Interest-free" && loan.rate === 0 || loanFilter === "Current" && loan.status === "Active" || loanFilter === "Paid this cycle" && paidThisCycle || loanFilter === "Paid off" && loan.status === "Paid";
       return matchesSearch && matchesFilter;
     });
@@ -237,8 +237,8 @@ export default function Home() {
           const dueReference = loan.interestDueSince || loan.nextPayment;
           const days = daysUntil(dueReference);
           const statusText = loan.status === "Paid" ? t("Paid in full") : days < 0 ? t("{days} day(s) overdue", { days: Math.abs(days) }) : days === 0 ? t("Due today") : days <= 7 ? t("Due in {days} day(s)", { days }) : loan.accruedInterest === 0 && loan.paymentCount > 0 ? "" : t("On track");
-          const paidThisCycle = loan.currentPeriodPaid > 0 && loan.accruedInterest === 0 && loan.status !== "Paid";
-          const statusLabel = loan.status === "Paid" ? t("Paid off") : paidThisCycle && loan.lastPaymentDate ? t("Paid {amount} on {date}", { amount: compactMoney(loan.currentPeriodPaid), date: displayDate(loan.lastPaymentDate) }) : loan.status === "Active" ? t("Current") : t(loan.status);
+          const paidThisCycle = loan.latestInterestPayment > 0 && loan.accruedInterest === 0 && loan.status !== "Paid";
+          const statusLabel = loan.status === "Paid" ? t("Paid off") : paidThisCycle && loan.latestInterestPaymentDate ? t("Paid {amount} on {date}", { amount: compactMoney(loan.latestInterestPayment), date: displayDate(loan.latestInterestPaymentDate) }) : loan.status === "Active" ? t("Current") : t(loan.status);
           const totalFunds = loan.principal + loan.totalTopups;
           const repaymentProgress = totalFunds ? Math.min(100, Math.max(0, (totalFunds - loan.currentPrincipal) / totalFunds * 100)) : 0;
           return <article className="portfolio-row" key={loan.id}>
