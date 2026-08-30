@@ -70,6 +70,11 @@ export default function Home() {
   const [editSaving, setEditSaving] = useState(false);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [topups, setTopups] = useState<Topup[]>([]);
+  const [editTopup, setEditTopup] = useState<Topup | null>(null);
+  const [editTopupAmount, setEditTopupAmount] = useState("");
+  const [editTopupDate, setEditTopupDate] = useState("");
+  const [editTopupNote, setEditTopupNote] = useState("");
+  const [topupEditSaving, setTopupEditSaving] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -183,6 +188,31 @@ export default function Home() {
     }
   }
 
+  function openTopupEdit(topup: Topup) {
+    setEditTopup(topup); setEditTopupAmount(String(topup.amount)); setEditTopupDate(topup.toppedUpAt.slice(0, 10)); setEditTopupNote(topup.note || ""); setEditError("");
+  }
+
+  async function updateTopup(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!historyLoan || !editTopup) return;
+    setTopupEditSaving(true); setEditError("");
+    try {
+      const response = await fetch(`/api/loans/${historyLoan.id}/topups/${editTopup.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount: Number(editTopupAmount), toppedUpAt: editTopupDate, note: editTopupNote }) });
+      const body = await response.json();
+      if (!response.ok) return setEditError(body.error || "Unable to update top-up.");
+      setEditTopup(null); await Promise.all([loadLoans(), openHistory(historyLoan)]);
+    } catch (error) { setEditError(error instanceof Error ? error.message : "Unable to update top-up."); }
+    finally { setTopupEditSaving(false); }
+  }
+
+  async function deleteTopup(topup: Topup) {
+    if (!historyLoan || !window.confirm(t("Delete this added-funds record? The loan balance and interest will be recalculated."))) return;
+    const response = await fetch(`/api/loans/${historyLoan.id}/topups/${topup.id}`, { method: "DELETE" });
+    const body = await response.json();
+    if (!response.ok) return setLoadError(body.error || "Unable to delete top-up.");
+    await Promise.all([loadLoans(), openHistory(historyLoan)]); setLoadError("");
+  }
+
   async function deleteLoan(loan: Loan) {
     if (!window.confirm(t("Delete {borrower}'s loan and all of its payment history? This cannot be undone.", { borrower: loan.borrower }))) return;
     const response = await fetch(`/api/loans/${loan.id}`, { method: "DELETE" });
@@ -225,7 +255,9 @@ export default function Home() {
 
     {editLoan && <Modal close={() => { if (!editSaving) setEditLoan(null); }}><form onSubmit={updateLoan}><ModalTitle eyebrow={t("EDIT LOAN")} title={editLoan.borrower} close={() => { if (!editSaving) setEditLoan(null); }}/><label>{t("Borrower name")}<input required maxLength={120} name="borrower" defaultValue={editLoan.borrower}/></label><div className="form-grid"><label>{t("Monthly rate (%)")}<input required name="rate" type="number" min="0" max="100" step="0.001" defaultValue={editLoan.rate}/></label><label>{t("Next payment date")}<input required name="nextPayment" type="date" min={editLoan.start.slice(0, 10)} defaultValue={editLoan.nextPayment.slice(0, 10)}/></label></div><p className="allocation-note">{t("Original amount: {amount}. It cannot be edited because payments are tied to it.", { amount: money(editLoan.principal) })}</p>{editError && <p className="modal-error" role="alert">{editError}</p>}<button className="primary-button submit" disabled={editSaving}>{t(editSaving ? "Saving…" : "Save changes")}</button></form></Modal>}
 
-    {historyLoan && <Modal close={() => setHistoryLoan(null)} wide><div><ModalTitle eyebrow={t("LOAN HISTORY")} title={historyLoan.borrower} close={() => setHistoryLoan(null)}/><div className="history-summary"><span>{t("Original loan")}<strong>{money(historyLoan.principal)}</strong></span><span>{t("Added funds")}<strong>{money(historyLoan.totalTopups)}</strong></span><span>{t("Principal left")}<strong>{money(historyLoan.currentPrincipal)}</strong></span><span>{t("Interest due")}<strong>{money(displayedInterestDue(historyLoan))}</strong><small>{historyLoan.accruedInterest > 0 ? t("Unpaid") : readableDate(historyLoan.nextPayment)}</small></span><span>{t("Total received")}<strong>{money(historyLoan.paid)}</strong></span></div>{historyLoading ? <p className="history-empty">{t("Loading history…")}</p> : <><h3 className="history-section-title">{t("Payments")}</h3>{payments.length ? <div className="history-list"><div className="history-head">{["Date", "Amount", "Interest", "Principal", "Method"].map((label) => <span key={label}>{t(label)}</span>)}</div>{payments.map((payment) => <div className="history-row" key={payment.id}><span>{displayDate(payment.paidAt)}</span><strong>{money(payment.amount)}</strong><span>{money(payment.interestAmount)}</span><span>{money(payment.principalAmount)}</span><span>{payment.method ? t(payment.method) : "—"}</span></div>)}</div> : <p className="compact-history-empty">{t("No recorded payments.")}</p>}<h3 className="history-section-title topup-history-title">{t("Top-ups")}</h3>{topups.length ? <div className="history-list"><div className="history-head topup-history-grid">{["Date", "Added", "Prorated interest", "Before", "After"].map((label) => <span key={label}>{t(label)}</span>)}</div>{topups.map((topup) => <div className="history-row topup-history-grid" key={topup.id}><span>{displayDate(topup.toppedUpAt)}</span><strong>{money(topup.amount)}</strong><span>{money(topup.partialInterest)}</span><span>{money(topup.principalBefore)}</span><span>{money(topup.principalAfter)}</span></div>)}</div> : <p className="compact-history-empty">{t("No top-ups recorded.")}</p>}</>}</div></Modal>}
+    {editTopup && historyLoan && <Modal close={() => { if (!topupEditSaving) setEditTopup(null); }}><form onSubmit={updateTopup}><ModalTitle eyebrow={t("EDIT ADDED FUNDS")} title={historyLoan.borrower} close={() => { if (!topupEditSaving) setEditTopup(null); }}/><label>{t("Additional amount")}<input required autoFocus type="number" min="0.01" step="0.01" value={editTopupAmount} onChange={(event) => setEditTopupAmount(event.target.value)}/></label><label>{t("Top-up date")}<input required type="date" max={localToday()} value={editTopupDate} onChange={(event) => setEditTopupDate(event.target.value)}/></label><label>{t("Note (optional)")}<input maxLength={240} value={editTopupNote} onChange={(event) => setEditTopupNote(event.target.value)} placeholder={t("Reason for additional borrowing")}/></label><p className="allocation-note">{t("The loan principal and prorated interest will be recalculated automatically.")}</p>{editError && <p className="modal-error" role="alert">{editError}</p>}<button className="primary-button submit" disabled={topupEditSaving}>{t(topupEditSaving ? "Saving…" : "Save changes")}</button></form></Modal>}
+
+    {historyLoan && <Modal close={() => setHistoryLoan(null)} wide><div><ModalTitle eyebrow={t("LOAN HISTORY")} title={historyLoan.borrower} close={() => setHistoryLoan(null)}/><div className="history-summary"><span>{t("Original loan")}<strong>{money(historyLoan.principal)}</strong></span><span>{t("Added funds")}<strong>{money(historyLoan.totalTopups)}</strong></span><span>{t("Principal left")}<strong>{money(historyLoan.currentPrincipal)}</strong></span><span>{t("Interest due")}<strong>{money(displayedInterestDue(historyLoan))}</strong><small>{historyLoan.accruedInterest > 0 ? t("Unpaid") : readableDate(historyLoan.nextPayment)}</small></span><span>{t("Total received")}<strong>{money(historyLoan.paid)}</strong></span></div>{historyLoading ? <p className="history-empty">{t("Loading history…")}</p> : <><h3 className="history-section-title">{t("Payments")}</h3>{payments.length ? <div className="history-list"><div className="history-head">{["Date", "Amount", "Interest", "Principal", "Method"].map((label) => <span key={label}>{t(label)}</span>)}</div>{payments.map((payment) => <div className="history-row" key={payment.id}><span>{displayDate(payment.paidAt)}</span><strong>{money(payment.amount)}</strong><span>{money(payment.interestAmount)}</span><span>{money(payment.principalAmount)}</span><span>{payment.method ? t(payment.method) : "—"}</span></div>)}</div> : <p className="compact-history-empty">{t("No recorded payments.")}</p>}<h3 className="history-section-title topup-history-title">{t("Top-ups")}</h3>{topups.length ? <div className="history-list"><div className="history-head topup-history-grid">{["Date", "Added", "Prorated interest", "Before", "After", "Actions"].map((label) => <span key={label}>{t(label)}</span>)}</div>{topups.map((topup, index) => <div className="history-row topup-history-grid" key={topup.id}><span>{displayDate(topup.toppedUpAt)}</span><strong>{money(topup.amount)}</strong><span>{money(topup.partialInterest)}</span><span>{money(topup.principalBefore)}</span><span>{money(topup.principalAfter)}</span><span className="topup-history-actions">{index === 0 ? <><button type="button" onClick={() => openTopupEdit(topup)}>{t("Edit")}</button><button type="button" className="delete" onClick={() => deleteTopup(topup)}>{t("Delete")}</button></> : <small>{t("Locked")}</small>}</span></div>)}</div> : <p className="compact-history-empty">{t("No top-ups recorded.")}</p>}</>}</div></Modal>}
   </main>;
 }
 
