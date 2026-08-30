@@ -196,6 +196,72 @@
   white-space: nowrap;
 }
 
+.portfolio-interest small {
+  max-width: 145px;
+}
+
+.portfolio-interest.interest-free small {
+  display: inline-flex;
+  width: max-content;
+  padding: 3px 7px;
+  border-radius: 20px;
+  background: #e7f1f7;
+  color: #35627d;
+  font-weight: 700;
+}
+
+.interest-free-value .table-subtext {
+  width: max-content;
+  padding: 3px 7px;
+  border-radius: 20px;
+  background: #e7f1f7;
+  color: #35627d;
+  font-weight: 700;
+}
+
+.modal-wide {
+  width: min(860px, 100%);
+}
+
+.history-summary {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.history-summary span {
+  min-width: 0;
+}
+
+.history-summary small {
+  display: block;
+  margin-top: 4px;
+  color: #768590;
+  font-size: 10px;
+}
+
+.topup-preview .topup-interest-total {
+  grid-column: 1 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #edf4f5;
+  border-color: #d5e5e7;
+}
+
+.topup-preview .topup-interest-total span,
+.topup-preview .topup-full-month span {
+  margin: 0;
+}
+
+.topup-preview .topup-interest-total strong {
+  color: #245d66;
+  font-size: 18px;
+}
+
+.topup-preview .topup-full-month {
+  background: #fff8e8;
+  border-color: #eadcb8;
+}
+
 .portfolio-actions {
   display: flex;
   align-items: center;
@@ -321,7 +387,7 @@
   }
 
   .portfolio-balance::before { content: "Outstanding"; }
-  .portfolio-interest::before { content: "Monthly interest"; }
+  .portfolio-interest::before { content: "Interest due"; }
   .portfolio-due::before { content: "Next payment"; }
   .portfolio-status::before { content: "Status"; }
 
@@ -345,5 +411,34 @@
 
   .portfolio-status .status-pill {
     width: max-content;
+  }
+
+  .history-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .topup-preview .topup-interest-total {
+    grid-column: auto;
+    display: block;
+  }
+
+  .topup-preview .topup-interest-total strong {
+    display: block;
+    margin-top: 5px;
+  }
+}
+.dashboard-page .summary-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 1200px) {
+  .dashboard-page .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .dashboard-page .summary-grid {
+    grid-template-columns: 1fr;
   }
 }

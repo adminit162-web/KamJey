@@ -2,37 +2,135 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendTelegramMessage } from "@/lib/telegram";
 
-const money = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(amount);
-const escapeHtml = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+const PHNOM_PENH_TIME_ZONE = "Asia/Phnom_Penh";
 
-export async function POST(request: NextRequest) {
-  const secret = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!process.env.TELEGRAM_ADMIN_CHAT_ID) return NextResponse.json({ error: "TELEGRAM_ADMIN_CHAT_ID is not configured." }, { status: 503 });
+const money = (amount: number) => new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 2,
+}).format(amount);
+
+const escapeHtml = (value: string) => value
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;");
+
+function phnomPenhDate(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: PHNOM_PENH_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+function daysFromToday(dateValue: string, todayValue: string) {
+  const due = Date.parse(`${dateValue}T00:00:00Z`);
+  const today = Date.parse(`${todayValue}T00:00:00Z`);
+  return Math.round((due - today) / 86_400_000);
+}
+
+function displayDate(dateValue: string) {
+  const [year, month, day] = dateValue.split("-");
+  return `${day}/${month}/${year.slice(-2)}`;
+}
+
+function alertDetails(days: number) {
+  if (days === 3) return { kind: "three-days-before", heading: "🔔 Payment due in 3 days" };
+  if (days === 0) return { kind: "due-today", heading: "⏰ Payment due today" };
+  if (days === -1) return { kind: "one-day-overdue", heading: "🚨 Payment overdue by 1 day" };
+  return null;
+}
+
+async function sendReminders(request: NextRequest) {
+  if (!process.env.CRON_SECRET || request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!process.env.TELEGRAM_ADMIN_CHAT_ID) {
+    return NextResponse.json({ error: "TELEGRAM_ADMIN_CHAT_ID is not configured." }, { status: 503 });
+  }
+
   try {
     const sql = db();
-    await sql`select accrue_loan(id, current_date) from loans where status = 'active'`;
-    const loans = await sql`select l.id, b.full_name as borrower, l.current_principal, l.accrued_interest, l.monthly_interest_rate, l.next_payment_date, l.interest_due_since from loans l join borrowers b on b.id = l.borrower_id where l.status = 'active'`;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const reminders: { id: string; borrower: string; dueDate: string; remaining: number; interest: number; days: number; kind: string }[] = [];
+    const today = phnomPenhDate();
+    await sql`select accrue_loan(id, ${today}::date) from loans where status = 'active'`;
+    const loans = await sql`
+      select l.id, l.loan_number, b.full_name as borrower, l.current_principal,
+        l.accrued_interest, l.monthly_interest_rate, l.next_interest_adjustment,
+        l.next_payment_date, l.interest_due_since
+      from loans l
+      join borrowers b on b.id = l.borrower_id
+      where l.status = 'active'
+    `;
+    const reminders: {
+      id: string;
+      kind: string;
+      heading: string;
+      borrower: string;
+      loanNumber: number;
+      dueDate: string;
+      principal: number;
+      interest: number;
+      total: number;
+    }[] = [];
+
     for (const loan of loans) {
       const dateValue = String(loan.interest_due_since || loan.next_payment_date).slice(0, 10);
-      const due = new Date(`${dateValue}T00:00:00`);
-      const days = Math.round((due.getTime() - today.getTime()) / 86_400_000);
-      if (![7, 3, 1, 0].includes(days)) continue;
-      const remaining = Number(loan.current_principal) + Number(loan.accrued_interest);
-      const interest = Number(loan.accrued_interest) || Number(loan.current_principal) * Number(loan.monthly_interest_rate) / 100;
-      if (remaining <= 0) continue;
-      const kind = `${dateValue}-due-${days}`;
+      const alert = alertDetails(daysFromToday(dateValue, today));
+      if (!alert) continue;
+
+      const principal = Number(loan.current_principal);
+      const accruedInterest = Number(loan.accrued_interest);
+      const scheduledInterest = Math.max(0, Math.round((principal * Number(loan.monthly_interest_rate) / 100 + Number(loan.next_interest_adjustment)) * 100) / 100);
+      const interest = accruedInterest > 0 ? accruedInterest : scheduledInterest;
+      if (principal + interest <= 0) continue;
+
+      const kind = `${dateValue}-${alert.kind}`;
       const [sent] = await sql`select id from reminder_logs where loan_id = ${loan.id} and reminder_kind = ${kind}`;
-      if (!sent) { const [year, month, day] = dateValue.split("-"); reminders.push({ id: loan.id, borrower: loan.borrower, dueDate: `${day}/${month}/${year.slice(-2)}`, remaining, interest, days, kind }); }
+      if (sent) continue;
+
+      reminders.push({
+        id: String(loan.id),
+        kind,
+        heading: alert.heading,
+        borrower: String(loan.borrower),
+        loanNumber: Number(loan.loan_number),
+        dueDate: displayDate(dateValue),
+        principal,
+        interest,
+        total: principal + interest,
+      });
     }
+
     if (!reminders.length) return NextResponse.json({ sent: 0 });
-    const text = ["<b>KamJey payment reminders</b>", "", ...reminders.map((reminder) => `• <b>${escapeHtml(reminder.borrower)}</b> — interest ${money(reminder.interest)}\n  Balance ${money(reminder.remaining)} · due ${reminder.dueDate} · ${reminder.days === 0 ? "today" : `in ${reminder.days} day(s)`}`)].join("\n");
+
+    const text = reminders.map((reminder) => [
+      `<b>${reminder.heading}</b>`,
+      `<b>${escapeHtml(reminder.borrower)}</b> — KJ-${String(reminder.loanNumber).padStart(4, "0")}`,
+      `Due: ${reminder.dueDate}`,
+      `Interest due: ${money(reminder.interest)}`,
+      `Principal remaining: ${money(reminder.principal)}`,
+      `<b>Total balance: ${money(reminder.total)}</b>`,
+    ].join("\n")).join("\n\n");
+
     await sendTelegramMessage({ chatId: process.env.TELEGRAM_ADMIN_CHAT_ID, text });
-    for (const reminder of reminders) await sql`insert into reminder_logs (loan_id, reminder_kind) values (${reminder.id}, ${reminder.kind}) on conflict do nothing`;
+    for (const reminder of reminders) {
+      await sql`insert into reminder_logs (loan_id, reminder_kind) values (${reminder.id}, ${reminder.kind}) on conflict do nothing`;
+    }
     return NextResponse.json({ sent: reminders.length });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Reminder failed" }, { status: 503 });
   }
+}
+
+export async function GET(request: NextRequest) {
+  return sendReminders(request);
+}
+
+// Keep POST available for existing manual reminder calls.
+export async function POST(request: NextRequest) {
+  return sendReminders(request);
 }
