@@ -18,6 +18,12 @@
   margin-bottom: 12px;
 }
 
+.portfolio-filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .portfolio-filters {
   display: flex;
   gap: 4px;
@@ -40,6 +46,23 @@
   background: #fff;
   color: #243f57;
   box-shadow: 0 2px 8px #233a4c14;
+}
+
+.portfolio-secondary-filter {
+  height: 40px;
+  padding: 0 34px 0 12px;
+  border: 1px solid #d6e0e6;
+  border-radius: 9px;
+  background: #fff;
+  color: #5f6f7c;
+  font: 700 12px inherit;
+  cursor: pointer;
+}
+
+.portfolio-secondary-filter.active {
+  border-color: #7290a6;
+  color: #243f57;
+  box-shadow: 0 0 0 3px #45698414;
 }
 
 .portfolio-search {
@@ -86,7 +109,7 @@
 .portfolio-table-head,
 .portfolio-row {
   display: grid;
-  grid-template-columns: minmax(190px, 1.3fr) minmax(190px, 1.15fr) minmax(125px, .72fr) minmax(145px, .9fr) minmax(175px, .9fr) 112px;
+  grid-template-columns: minmax(200px, 1.2fr) minmax(250px, 1.25fr) minmax(185px, 1fr) minmax(135px, .75fr) 132px;
   gap: 20px;
   align-items: center;
 }
@@ -136,6 +159,8 @@
 .portfolio-borrower strong,
 .portfolio-balance strong,
 .portfolio-interest strong,
+.portfolio-month-payment strong,
+.portfolio-next-payment strong,
 .portfolio-due strong {
   display: block;
   margin: 0;
@@ -154,6 +179,8 @@
 .portfolio-borrower small,
 .portfolio-balance small,
 .portfolio-interest small,
+.portfolio-month-payment small,
+.portfolio-next-payment small,
 .portfolio-due small {
   display: block;
   margin-top: 4px;
@@ -194,6 +221,16 @@
 .portfolio-status .status-pill {
   margin: 0;
   white-space: nowrap;
+}
+
+.status-pill.unscheduled {
+  background: #e7f1f7;
+  color: #35627d;
+}
+
+.portfolio-status .status-pill.paid-month {
+  background: #e2f2e9;
+  color: #246b49;
 }
 
 .portfolio-interest small {
@@ -300,7 +337,8 @@
   margin: 38px 0 42px;
 }
 
-.donut-card {
+.donut-card,
+.receivable-card {
   min-height: 282px;
   padding: 22px;
   border: 1px solid #e3e9ed;
@@ -319,6 +357,16 @@
 .donut-legend>div { display: grid; grid-template-columns: 9px 1fr auto; align-items: center; gap: 7px; color: #667582; font-size: 11px; }
 .donut-legend i { width: 8px; height: 8px; border-radius: 50%; }
 .donut-legend strong { color: #263f53; font-size: 12px; white-space: nowrap; }
+.receivable-total { display:grid;gap:6px;margin-top:22px;padding:18px;border-radius:12px;background:#f2f6f8; }
+.receivable-total span { color:#697986;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em; }
+.receivable-total strong { color:#19364c;font-size:29px;letter-spacing:-.65px; }
+.receivable-breakdown { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px; }
+.receivable-breakdown>div { display:grid;grid-template-columns:9px 1fr;gap:5px 8px;padding:12px;border:1px solid #e2e8ec;border-radius:10px;min-width:0; }
+.receivable-breakdown i { width:8px;height:8px;margin-top:3px;border-radius:50%; }
+.receivable-breakdown .principal-dot { background:#294f69; }
+.receivable-breakdown .interest-dot { background:#dc8b2f; }
+.receivable-breakdown span { color:#697986;font-size:10px;line-height:1.3; }
+.receivable-breakdown strong { grid-column:2;color:#263f53;font-size:14px;white-space:nowrap; }
 .analytics-kpis { display: grid; grid-template-rows: repeat(3, 1fr); gap: 10px; }
 .analytics-kpis .metric { min-height: 0; padding: 15px 17px; }
 .analytics-kpis .metric>strong { margin: 8px 0; font-size: 22px; }
@@ -346,12 +394,7 @@
 @media (max-width: 1280px) {
   .portfolio-table-head,
   .portfolio-row {
-    grid-template-columns: minmax(180px, 1.2fr) minmax(170px, 1fr) minmax(140px, .85fr) 108px 112px;
-  }
-
-  .portfolio-table-head > span:nth-child(3),
-  .portfolio-interest {
-    display: none;
+    grid-template-columns: minmax(170px, 1.15fr) minmax(210px, 1.2fr) minmax(165px, 1fr) minmax(125px, .75fr) 125px;
   }
 }
 
@@ -368,10 +411,6 @@
 
   .portfolio-borrower {
     grid-column: 1 / -1;
-  }
-
-  .portfolio-interest {
-    display: block;
   }
 
 .portfolio-status {
@@ -391,18 +430,44 @@
   }
 }
 
-.portfolio-status .status-pill.paid-cycle { background:#e2f2e9;color:#246b49; }
+.portfolio-month-payment {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+.portfolio-month-payment strong,
+.portfolio-month-payment small,
+.portfolio-month-payment time {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.portfolio-month-payment strong {
+  color: #246b49;
+  font-size: 15px;
+}
+.portfolio-month-payment small,
+.portfolio-month-payment time {
+  color: #657585;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.portfolio-month-payment time {
+  font-style: normal;
+}
 .portfolio-status>small { display:block;margin-top:6px;color:#657585;font-size:10px;white-space:nowrap; }
 .portfolio-table-head>span:nth-child(5) { white-space:nowrap; }
 
 @media (min-width:1281px) {
-  .paid-cycle-view .portfolio-table-head,
-  .paid-cycle-view .portfolio-row { grid-template-columns:minmax(190px,1.3fr) minmax(190px,1.15fr) minmax(125px,.72fr) minmax(145px,.9fr) minmax(175px,.9fr); }
+  .paid-month-view .portfolio-table-head,
+  .paid-month-view .portfolio-row { grid-template-columns:minmax(210px,1.2fr) minmax(210px,1.1fr) minmax(220px,1fr) minmax(180px,.85fr); }
 }
 
 @media (min-width:1101px) and (max-width:1280px) {
-  .paid-cycle-view .portfolio-table-head,
-  .paid-cycle-view .portfolio-row { grid-template-columns:minmax(180px,1.2fr) minmax(170px,1fr) 140px 180px; }
+  .paid-month-view .portfolio-table-head,
+  .paid-month-view .portfolio-row { grid-template-columns:minmax(170px,1.1fr) minmax(155px,1fr) minmax(185px,1fr) minmax(155px,.9fr); }
+  .paid-month-view .portfolio-table-head > span:nth-child(3) { display:block; }
 }
 
 @media (max-width: 700px) {
@@ -417,6 +482,15 @@
   .portfolio-toolbar {
     align-items: stretch;
     flex-direction: column-reverse;
+  }
+
+  .portfolio-filter-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .portfolio-secondary-filter {
+    width: 100%;
   }
 
   .portfolio-search {
@@ -444,7 +518,7 @@
   }
 
   .portfolio-balance,
-  .portfolio-interest,
+  .portfolio-next-payment,
   .portfolio-due,
   .portfolio-status {
     display: grid;
@@ -453,12 +527,12 @@
   }
 
   .portfolio-balance::before { content: "Outstanding"; }
-  .portfolio-interest::before { content: "Interest due"; }
+  .portfolio-next-payment::before { content: "Next payment"; }
   .portfolio-due::before { content: "Next interest payment"; }
   .portfolio-status::before { content: "Status"; }
 
   .portfolio-balance::before,
-  .portfolio-interest::before,
+  .portfolio-next-payment::before,
   .portfolio-due::before,
   .portfolio-status::before {
     color: #71808c;
@@ -470,7 +544,7 @@
 
   .portfolio-balance small,
   .portfolio-progress,
-  .portfolio-interest small,
+  .portfolio-next-payment small,
   .portfolio-due small {
     grid-column: 2;
   }
