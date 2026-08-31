@@ -1,8 +1,10 @@
 # Local credentials and runtime output
+.env
 .env.local
 .env*.local
 .next/
 node_modules/
+.npm-cache/
 
 # Logs
 npm-debug.log*

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useLanguage } from "../language-provider";
+import AccessSettings from "./access-settings";
 
 type Settings = { general: { currency: string; dateFormat: string; interestModel: string }; integrations: { telegram: boolean; adminChat: boolean; reminders: boolean }; security: { hashedPassword: boolean; sessionSecret: boolean; plaintextPassword: boolean } };
 
-export default function SettingsPage() {
+export function LegacySettingsPage() {
   const { t } = useLanguage();
   const [settings, setSettings] = useState<Settings | null>(null); const [error, setError] = useState("");
   useEffect(() => { fetch("/api/settings").then(async (response) => { const body = await response.json(); if (!response.ok) throw new Error(body.error); return body; }).then(setSettings).catch((reason: Error) => setError(reason.message)); }, []);
@@ -15,3 +16,5 @@ export default function SettingsPage() {
 function SettingsCard({ title, copy, children }: { title: string; copy: string; children: React.ReactNode }) { return <section className="settings-card"><h2>{title}</h2><p>{copy}</p><div className="settings-rows">{children}</div></section>; }
 function SettingRow({ label, value }: { label: string; value: string }) { return <div className="setting-row"><span>{label}</span><strong>{value}</strong></div>; }
 function StatusRow({ label, ready }: { label: string; ready: boolean }) { const { t } = useLanguage(); return <div className="setting-row"><span>{label}</span><strong className={ready ? "config-ready" : "config-missing"}>{t(ready ? "Configured" : "Missing")}</strong></div>; }
+
+export default function SettingsPage() { return <AccessSettings />; }

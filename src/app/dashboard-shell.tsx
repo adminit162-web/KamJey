@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LanguageSwitcher, useLanguage } from "./language-provider";
+import type { SessionUser } from "@/lib/auth";
 
 type SidebarIconName = "overview" | "loans" | "borrowers" | "payments" | "settings" | "sign-out";
 
@@ -32,6 +34,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const router = useRouter();
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState<SessionUser | null>(null);
+  useEffect(() => { if (pathname !== "/login") fetch("/api/auth/me").then((response) => response.ok ? response.json() : null).then((body) => setUser(body?.user ?? null)); }, [pathname]);
   if (pathname === "/login") return children;
 
   async function logout() { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); router.refresh(); }
@@ -40,13 +44,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     <button className="mobile-menu-button" onClick={() => setOpen(true)} aria-label={t("Open navigation")}>☰</button>
     {open && <button className="mobile-nav-overlay" aria-label={t("Close navigation")} onClick={() => setOpen(false)}/>}
     <aside className={`sidebar ${open ? "mobile-open" : ""}`}>
-      <div className="brand"><span className="brand-mark">↗</span><span>KamJey</span><button className="mobile-close" onClick={() => setOpen(false)} aria-label={t("Close navigation")}>×</button></div>
+      <div className="brand"><span className="brand-mark"><Image src="/kamjey-logo.png" alt="" width={31} height={31} priority /></span><span>KamJey</span><button className="mobile-close" onClick={() => setOpen(false)} aria-label={t("Close navigation")}>×</button></div>
       <LanguageSwitcher />
       <nav>{navigation.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className={pathname === item.href ? "nav-item active" : "nav-item"}><span className="nav-icon"><SidebarIcon name={item.icon} /></span>{t(item.label)}</Link>)}</nav>
       <div className="sidebar-bottom">
-        <Link href="/settings" onClick={() => setOpen(false)} className={pathname === "/settings" ? "nav-item active" : "nav-item"}><span className="nav-icon"><SidebarIcon name="settings" /></span>{t("Settings")}</Link>
+        {user?.role === "admin" && <Link href="/settings" onClick={() => setOpen(false)} className={pathname === "/settings" ? "nav-item active" : "nav-item"}><span className="nav-icon"><SidebarIcon name="settings" /></span>{t("Settings")}</Link>}
         <button className="nav-item sign-out" onClick={logout}><span className="nav-icon"><SidebarIcon name="sign-out" /></span>{t("Sign out")}</button>
-        <div className="profile"><div className="avatar navy">KJ</div><div><strong>KamJey</strong><small>{t("Personal account")}</small></div></div>
+        <div className="profile"><div className="avatar navy">{user?.fullName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "KJ"}</div><div><strong>{user?.fullName || "KamJey"}</strong><small>{user ? `${user.role === "admin" ? t("Administrator") : t("Staff")} · @${user.username}` : t("Loading…")}</small></div></div>
       </div>
     </aside>
     <section className="content">{children}</section>

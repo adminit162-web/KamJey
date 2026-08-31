@@ -65,6 +65,32 @@ create index if not exists loans_due_date_idx on loans(due_date);
 create index if not exists payments_loan_id_idx on payments(loan_id);
 create index if not exists loan_topups_loan_id_idx on loan_topups(loan_id);
 
+create table if not exists users (
+  id uuid primary key default gen_random_uuid(),
+  username text not null,
+  full_name text not null,
+  password_hash text not null,
+  role text not null default 'staff' check (role in ('admin', 'staff')),
+  active boolean not null default true,
+  last_login_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists users_username_lower_idx on users(lower(username));
+
+create table if not exists backup_logs (
+  id uuid primary key default gen_random_uuid(),
+  requested_by uuid references users(id) on delete set null,
+  destination text not null default 'telegram',
+  filename text not null,
+  status text not null check (status in ('sent', 'failed')),
+  error_message text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists backup_logs_created_at_idx on backup_logs(created_at desc);
+
 -- Safe upgrade path for databases created by an earlier KamJey version.
 alter table loans add column if not exists loan_number bigint;
 alter table loans alter column loan_number set default nextval('loan_number_seq');
