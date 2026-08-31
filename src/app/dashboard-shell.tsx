@@ -40,8 +40,14 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   async function logout() { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); router.refresh(); }
 
+  const currentNavigation = navigation.find((item) => item.href === pathname);
+
   return <div className="app-shell">
-    <button className="mobile-menu-button" onClick={() => setOpen(true)} aria-label={t("Open navigation")}>☰</button>
+    <header className="mobile-app-bar">
+      <button className="mobile-menu-button" onClick={() => setOpen(true)} aria-label={t("Open navigation")}><span aria-hidden="true">☰</span></button>
+      <span className="mobile-app-identity"><Image src="/kamjey-logo.png" alt="" width={30} height={30} priority /><span><small>KamJey</small><strong>{t(currentNavigation?.label || (pathname === "/settings" ? "Settings" : "Overview"))}</strong></span></span>
+      <span className="mobile-avatar" aria-hidden="true">{user?.fullName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "KJ"}</span>
+    </header>
     {open && <button className="mobile-nav-overlay" aria-label={t("Close navigation")} onClick={() => setOpen(false)}/>}
     <aside className={`sidebar ${open ? "mobile-open" : ""}`}>
       <div className="brand"><span className="brand-mark"><Image src="/kamjey-logo.png" alt="" width={31} height={31} priority /></span><span>KamJey</span><button className="mobile-close" onClick={() => setOpen(false)} aria-label={t("Close navigation")}>×</button></div>
@@ -54,5 +60,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </div>
     </aside>
     <section className="content">{children}</section>
+    <nav className="mobile-bottom-nav" aria-label={t("Main navigation")}>{navigation.map((item) => <Link key={item.href} href={item.href} className={pathname === item.href ? "active" : ""}><span className="mobile-bottom-icon"><SidebarIcon name={item.icon} /></span><span>{t(item.label)}</span></Link>)}</nav>
   </div>;
 }

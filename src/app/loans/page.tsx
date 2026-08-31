@@ -56,13 +56,13 @@ export default function LoansPage() {
       {visible.length ? visible.map((loan) => {
         const topups = Number(loan.total_topups);
         return <div className="data-table loans-table" key={loan.id}>
-          <strong>KJ-{String(loan.loan_number).padStart(4, "0")}</strong>
-          <span>{loan.borrower}</span>
-          <span>{money(Number(loan.principal) + topups)}{topups > 0 && <small className="table-subtext">{t("Includes {amount} top-ups", { amount: money(topups) })}</small>}</span>
-          <strong className="balance-emphasis">{money(Number(loan.current_principal))}</strong>
-          <span className={Number(loan.rate) === 0 ? "interest-free-value" : ""}>{money(interestDue(loan))}{Number(loan.rate) === 0 && <small className="table-subtext">{t("Interest-free")}</small>}</span>
-          <span>{date(loan.interest_due_since || loan.next_payment_date)}</span>
-          <span className={`status-pill ${viewStatus(loan).toLowerCase()}`}>{t(viewStatus(loan) === "Paid" ? "Paid off" : viewStatus(loan))}</span>
+          <strong data-label={t("Reference")}>KJ-{String(loan.loan_number).padStart(4, "0")}</strong>
+          <span data-label={t("Borrower")}>{loan.borrower}</span>
+          <span data-label={t("Total borrowed")}>{money(Number(loan.principal) + topups)}{topups > 0 && <small className="table-subtext">{t("Includes {amount} top-ups", { amount: money(topups) })}</small>}</span>
+          <strong data-label={t("Principal left")} className="balance-emphasis">{money(Number(loan.current_principal))}</strong>
+          <span data-label={t("Interest")} className={Number(loan.rate) === 0 ? "interest-free-value" : ""}>{money(interestDue(loan))}{Number(loan.rate) === 0 && <small className="table-subtext">{t("Interest-free")}</small>}</span>
+          <span data-label={t("Next payment")}>{date(loan.interest_due_since || loan.next_payment_date)}</span>
+          <span data-label={t("Payment status")} className={`status-pill ${viewStatus(loan).toLowerCase()}`}>{t(viewStatus(loan) === "Paid" ? "Paid off" : viewStatus(loan))}</span>
         </div>;
       }) : <Empty text={t("No loans match this view.")}/>}
     </div>
