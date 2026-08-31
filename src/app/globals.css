@@ -30,3 +30,17 @@ html[data-language="km"] h1,html[data-language="km"] h2,html[data-language="km"]
   .modal-backdrop { padding: 10px; }
   .modal { max-height: calc(100dvh - 20px); padding: 22px 18px; }
 }
+
+.nav-item .nav-icon {
+  display: grid;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+}
+
+.nav-icon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+}

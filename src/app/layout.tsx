@@ -20,5 +20,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" className={battambang.variable} suppressHydrationWarning><body><LanguageProvider><DashboardShell>{children}</DashboardShell></LanguageProvider></body></html>;
+  return <html lang="km" data-language="km" className={battambang.variable} suppressHydrationWarning><body><LanguageProvider><DashboardShell>{children}</DashboardShell></LanguageProvider></body></html>;
 }
