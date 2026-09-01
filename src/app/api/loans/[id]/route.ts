@@ -14,7 +14,8 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     const principal = Math.round(Number(body.principal) * 100) / 100;
     const rate = Number(body.rate);
     const nextPayment = String(body.nextPayment || "");
-    if (!validId(id) || !borrower || borrower.length > 120 || !Number.isFinite(principal) || principal <= 0 || !Number.isFinite(rate) || rate < 0 || rate > 100 || !/^\d{4}-\d{2}-\d{2}$/.test(nextPayment)) {
+    const management = String(body.management || "");
+    if (!validId(id) || !borrower || borrower.length > 120 || !Number.isFinite(principal) || principal <= 0 || !Number.isFinite(rate) || rate < 0 || rate > 100 || !/^\d{4}-\d{2}-\d{2}$/.test(nextPayment) || !["Manith", "Linda"].includes(management)) {
       return NextResponse.json({ error: "Please provide valid loan details." }, { status: 400 });
     }
     const sql = db();
@@ -29,11 +30,12 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       const recalculatedInterest = Math.round(principal * rate / 100 * cycles * 100) / 100;
       const clearsAccruedInterest = changesFinancialTerms && recalculatedInterest === 0;
       await transaction`update borrowers set full_name = ${borrower} where id = ${loan.borrower_id}`;
+      await transaction`update loans set management = ${management} where id = ${id}::uuid`;
       const [record] = await transaction`update loans set principal = ${principal}, current_principal = case when ${changesFinancialTerms} then ${principal} else current_principal end, accrued_interest = case when ${changesFinancialTerms} then ${recalculatedInterest} else accrued_interest end, interest_due_since = case when ${clearsAccruedInterest} then null else interest_due_since end, monthly_interest_rate = ${rate}, next_interest_adjustment = case when ${changesFinancialTerms} then 0 else next_interest_adjustment end, next_payment_date = ${nextPayment}, due_date = ${nextPayment}, payment_day = extract(day from ${nextPayment}::date)::integer where id = ${id}::uuid returning id, principal, current_principal, accrued_interest, monthly_interest_rate as rate, next_payment_date`;
       return record;
     });
     if (!updated) return NextResponse.json({ error: "Loan not found." }, { status: 404 });
-    return NextResponse.json({ ...updated, borrower });
+    return NextResponse.json({ ...updated, borrower, management });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update loan.";
     return NextResponse.json({ error: message }, { status: message.includes("before") || message.includes("cannot be changed") ? 400 : 503 });

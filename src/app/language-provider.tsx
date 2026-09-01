@@ -7,6 +7,8 @@ export type Language = "en" | "km";
 type Variables = Record<string, string | number>;
 
 const km: Record<string, string> = {
+  "Management": "ការគ្រប់គ្រង", "All management": "ការគ្រប់គ្រងជារួម",
+  "Paid during {month}": "បានទូទាត់រួចក្នុងខែ {month}",
   "Language": "ភាសា", "Overview": "ទិដ្ឋភាពទូទៅ", "Loans": "ប្រាក់កម្ចី", "Borrowers": "អ្នកខ្ចី", "Payments": "ការទូទាត់", "Settings": "ការកំណត់", "Sign out": "ចាកចេញ", "Personal account": "គណនីផ្ទាល់ខ្លួន",
   "Open navigation": "បើកម៉ឺនុយ", "Close navigation": "បិទម៉ឺនុយ", "People": "មនុស្ស", "See each borrower’s loan exposure and payment totals.": "មើលសមតុល្យប្រាក់កម្ចី និងការទូទាត់សរុបរបស់អ្នកខ្ចីម្នាក់ៗ។", "{active} active of {total} loan(s)": "កំពុងដំណើរការ {active} ក្នុងចំណោម {total} កម្ចី", "Principal left": "ប្រាក់ដើមនៅសល់", "Interest due": "ការប្រាក់ត្រូវបង់", "Total paid": "បានបង់សរុប", "No borrowers yet": "មិនទាន់មានអ្នកខ្ចី", "Borrowers appear here when you create a loan.": "អ្នកខ្ចីនឹងបង្ហាញនៅទីនេះពេលអ្នកបង្កើតកម្ចី។",
   "Ledger": "បញ្ជីប្រតិបត្តិការ", "A complete history of money received and how it was allocated.": "ប្រវត្តិពេញលេញនៃប្រាក់ដែលបានទទួល និងការបែងចែក។", "Total received": "បានទទួលសរុប", "Interest collected": "ការប្រាក់ដែលប្រមូលបាន", "Principal collected": "ប្រាក់ដើមដែលប្រមូលបាន", "Date": "កាលបរិច្ឆេទ", "Loan": "កម្ចី", "Borrower": "អ្នកខ្ចី", "Amount": "ចំនួនទឹកប្រាក់", "Interest": "ការប្រាក់", "Principal": "ប្រាក់ដើម", "Method": "វិធីទូទាត់", "No payments yet": "មិនទាន់មានការទូទាត់", "Recorded loan payments will appear here.": "ការទូទាត់កម្ចីដែលបានកត់ត្រានឹងបង្ហាញនៅទីនេះ។",

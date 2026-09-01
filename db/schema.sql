@@ -25,6 +25,7 @@ create table if not exists loans (
   interest_due_since date,
   payment_day smallint not null check (payment_day between 1 and 31),
   status text not null default 'active' check (status in ('active', 'paid', 'overdue')),
+  management text not null default 'Linda' check (management in ('Manith', 'Linda')),
   notes text,
   created_at timestamptz not null default now()
 );
@@ -104,6 +105,9 @@ alter table loans add column if not exists next_interest_adjustment numeric(14,2
 alter table loans add column if not exists next_payment_date date;
 alter table loans add column if not exists payment_day smallint;
 alter table loans add column if not exists interest_due_since date;
+alter table loans add column if not exists management text not null default 'Linda';
+alter table loans drop constraint if exists loans_management_check;
+alter table loans add constraint loans_management_check check (management in ('Manith', 'Linda'));
 update loans set current_principal = principal where current_principal is null;
 update loans set next_payment_date = due_date where next_payment_date is null;
 update loans set payment_day = extract(day from start_date)::smallint where payment_day is null;
