@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Battambang } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import "./readability.css";
 import "./tailwind.css";
@@ -9,11 +9,12 @@ import DashboardShell from "./dashboard-shell";
 import { LanguageProvider } from "./language-provider";
 import PwaRegistration from "./pwa-registration";
 
-const battambang = Battambang({
-  subsets: ["khmer"],
-  weight: ["400", "700", "900"],
+const kantumruyPro = localFont({
+  src: "../../node_modules/@fontsource-variable/kantumruy-pro/files/kantumruy-pro-khmer-wght-normal.woff2",
+  weight: "100 700",
   variable: "--font-khmer",
   display: "swap",
+  fallback: ["DM Sans", "Noto Sans Khmer", "sans-serif"],
 });
 
 export const metadata: Metadata = {
@@ -33,5 +34,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="km" data-language="km" className={battambang.variable} suppressHydrationWarning><body><LanguageProvider><PwaRegistration /><DashboardShell>{children}</DashboardShell></LanguageProvider></body></html>;
+  return <html lang="km" data-language="km" className={kantumruyPro.variable} suppressHydrationWarning><body><LanguageProvider><PwaRegistration /><DashboardShell>{children}</DashboardShell></LanguageProvider></body></html>;
 }
