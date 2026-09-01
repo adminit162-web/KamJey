@@ -10,7 +10,7 @@ type Context = { params: Promise<{ id: string; paymentId: string }> };
 
 function responseStatus(message: string) {
   if (message.includes("not found")) return 404;
-  if (message.includes("Only") || message.includes("closed") || message.includes("between") || message.includes("exceed")) return 400;
+  if (message.includes("Only") || message.includes("closed") || message.includes("between") || message.includes("earlier") || message.includes("depends") || message.includes("exceed")) return 400;
   return 503;
 }
 
@@ -34,11 +34,15 @@ export async function PATCH(request: NextRequest, context: Context) {
 
       const [latest] = await transaction`select id from payments where loan_id = ${id}::uuid order by paid_at desc, created_at desc limit 1`;
       if (String(latest.id) !== paymentId) throw new Error("Only the most recent payment can be changed.");
+      const [previousPayment] = await transaction`select paid_at from payments where loan_id = ${id}::uuid and id <> ${paymentId}::uuid order by paid_at desc, created_at desc limit 1`;
+      const [laterTopup] = await transaction`select id from loan_topups where loan_id = ${id}::uuid and topped_up_at > ${payment.paid_at}::date limit 1`;
+      if (laterTopup) throw new Error("A later top-up depends on this payment, so it cannot be changed.");
 
       const periodStart = sqlDate(loan.period_start);
       const periodEnd = sqlDate(loan.next_payment_date);
       if (sqlDate(payment.paid_at) < periodStart) throw new Error("This payment belongs to a closed interest period.");
       if (paidAt < periodStart || paidAt > periodEnd) throw new Error(`Payment date must be between ${periodStart} and ${periodEnd}.`);
+      if (previousPayment && paidAt < sqlDate(previousPayment.paid_at)) throw new Error(`Payment date cannot be earlier than ${sqlDate(previousPayment.paid_at)}.`);
 
       const restoredPrincipal = cents(Number(loan.current_principal) + Number(payment.principal_amount));
       const restoredInterest = cents(Number(loan.accrued_interest) + Number(payment.interest_amount));
@@ -75,6 +79,8 @@ export async function DELETE(_request: NextRequest, context: Context) {
 
       const [latest] = await transaction`select id from payments where loan_id = ${id}::uuid order by paid_at desc, created_at desc limit 1`;
       if (String(latest.id) !== paymentId) throw new Error("Only the most recent payment can be deleted.");
+      const [laterTopup] = await transaction`select id from loan_topups where loan_id = ${id}::uuid and topped_up_at > ${payment.paid_at}::date limit 1`;
+      if (laterTopup) throw new Error("A later top-up depends on this payment, so it cannot be deleted.");
       const periodStart = sqlDate(loan.period_start);
       if (sqlDate(payment.paid_at) < periodStart) throw new Error("This payment belongs to a closed interest period.");
 
