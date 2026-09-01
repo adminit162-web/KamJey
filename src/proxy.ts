@@ -5,7 +5,7 @@ const adminPaths = ["/settings", "/api/settings", "/api/users", "/api/export", "
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (pathname === "/login" || pathname === "/api/auth/login" || pathname === "/api/reminders") return NextResponse.next();
+  if (pathname === "/login" || pathname === "/api/auth/login" || pathname === "/api/reminders" || pathname === "/api/telegram/webhook") return NextResponse.next();
 
   const session = await readSession(request.cookies.get("kamjey_session")?.value);
   if (!session) {

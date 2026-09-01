@@ -78,6 +78,24 @@ create table if not exists users (
   updated_at timestamptz not null default now()
 );
 
+alter table reminder_logs add column if not exists status text not null default 'sent';
+alter table reminder_logs add column if not exists error_message text;
+alter table reminder_logs add column if not exists attempt_count integer not null default 1;
+alter table reminder_logs add column if not exists updated_at timestamptz not null default now();
+
+create table if not exists telegram_delivery_logs (
+  id uuid primary key default gen_random_uuid(),
+  delivery_key text not null unique,
+  delivery_kind text not null,
+  status text not null check (status in ('pending', 'sent', 'failed')),
+  error_message text,
+  attempt_count integer not null default 1,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists telegram_delivery_logs_created_at_idx on telegram_delivery_logs(created_at desc);
+
 create unique index if not exists users_username_lower_idx on users(lower(username));
 
 create table if not exists backup_logs (

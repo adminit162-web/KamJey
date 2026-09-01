@@ -42,7 +42,48 @@ function alertDetails(days: number) {
   if (days === 3) return { kind: "three-days-before", heading: "🔔 Payment due in 3 days" };
   if (days === 0) return { kind: "due-today", heading: "⏰ Payment due today" };
   if (days === -1) return { kind: "one-day-overdue", heading: "🚨 Payment overdue by 1 day" };
+  if (days < -1 && (Math.abs(days) - 1) % 3 === 0) return { kind: `${Math.abs(days)}-days-overdue`, heading: `🚨 Payment overdue by ${Math.abs(days)} days` };
   return null;
+}
+
+async function sendDailySummary(sql: ReturnType<typeof db>, chatId: string, today: string) {
+  const deliveryKey = `daily-summary-${today}`;
+  const [claim] = await sql`
+    insert into telegram_delivery_logs (delivery_key, delivery_kind, status)
+    values (${deliveryKey}, 'daily-summary', 'pending')
+    on conflict (delivery_key) do update set status = 'pending', error_message = null,
+      attempt_count = telegram_delivery_logs.attempt_count + 1, updated_at = now()
+    where telegram_delivery_logs.status = 'failed'
+      or (telegram_delivery_logs.status = 'pending' and telegram_delivery_logs.updated_at < now() - interval '15 minutes')
+    returning id
+  `;
+  if (!claim) return false;
+  try {
+    const [summary] = await sql`
+      select
+        count(*) filter (where coalesce(interest_due_since, next_payment_date) = ${today}::date)::integer as due_today,
+        count(*) filter (where coalesce(interest_due_since, next_payment_date) < ${today}::date)::integer as overdue,
+        count(*) filter (where coalesce(interest_due_since, next_payment_date) > ${today}::date and coalesce(interest_due_since, next_payment_date) <= ${today}::date + 7)::integer as upcoming,
+        coalesce(sum(current_principal), 0) as principal,
+        coalesce(sum(accrued_interest), 0) as interest
+      from loans where status = 'active'
+    `;
+    await sendTelegramMessage({ chatId, text: [
+      `<b>📊 Daily loan summary — ${displayDate(today)}</b>`,
+      `Due today: <b>${summary.due_today}</b>`,
+      `Overdue: <b>${summary.overdue}</b>`,
+      `Due in the next 7 days: <b>${summary.upcoming}</b>`,
+      `Outstanding principal: <b>${money(Number(summary.principal))}</b>`,
+      `Accrued interest: <b>${money(Number(summary.interest))}</b>`,
+      "", "Commands: /today · /overdue · /upcoming · /summary",
+    ].join("\n") });
+    await sql`update telegram_delivery_logs set status = 'sent', updated_at = now() where id = ${claim.id}`;
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Summary delivery failed";
+    await sql`update telegram_delivery_logs set status = 'failed', error_message = ${message}, updated_at = now() where id = ${claim.id}`;
+    throw error;
+  }
 }
 
 async function sendReminders(request: NextRequest) {
@@ -89,9 +130,6 @@ async function sendReminders(request: NextRequest) {
       if (principal + interest <= 0) continue;
 
       const kind = `${dateValue}-${alert.kind}`;
-      const [sent] = await sql`select id from reminder_logs where loan_id = ${loan.id} and reminder_kind = ${kind}`;
-      if (sent) continue;
-
       reminders.push({
         id: String(loan.id),
         kind,
@@ -105,22 +143,36 @@ async function sendReminders(request: NextRequest) {
       });
     }
 
-    if (!reminders.length) return NextResponse.json({ sent: 0 });
-
-    const text = reminders.map((reminder) => [
-      `<b>${reminder.heading}</b>`,
-      `<b>${escapeHtml(reminder.borrower)}</b> — KJ-${String(reminder.loanNumber).padStart(4, "0")}`,
-      `Due: ${reminder.dueDate}`,
-      `Interest due: ${money(reminder.interest)}`,
-      `Principal remaining: ${money(reminder.principal)}`,
-      `<b>Total balance: ${money(reminder.total)}</b>`,
-    ].join("\n")).join("\n\n");
-
-    await sendTelegramMessage({ chatId: process.env.TELEGRAM_ADMIN_CHAT_ID, text });
+    let sentCount = 0;
     for (const reminder of reminders) {
-      await sql`insert into reminder_logs (loan_id, reminder_kind) values (${reminder.id}, ${reminder.kind}) on conflict do nothing`;
+      const [claim] = await sql`
+        insert into reminder_logs (loan_id, reminder_kind, status) values (${reminder.id}, ${reminder.kind}, 'pending')
+        on conflict (loan_id, reminder_kind) do update set status = 'pending', error_message = null,
+          attempt_count = reminder_logs.attempt_count + 1, updated_at = now()
+        where reminder_logs.status = 'failed'
+          or (reminder_logs.status = 'pending' and reminder_logs.updated_at < now() - interval '15 minutes')
+        returning id
+      `;
+      if (!claim) continue;
+      const text = [
+        `<b>${reminder.heading}</b>`,
+        `<b>${escapeHtml(reminder.borrower)}</b> — KJ-${String(reminder.loanNumber).padStart(4, "0")}`,
+        `Due: ${reminder.dueDate}`,
+        `Interest due: ${money(reminder.interest)}`,
+        `Principal remaining: ${money(reminder.principal)}`,
+        `<b>Total balance: ${money(reminder.total)}</b>`,
+      ].join("\n");
+      try {
+        await sendTelegramMessage({ chatId: process.env.TELEGRAM_ADMIN_CHAT_ID, text });
+        await sql`update reminder_logs set status = 'sent', updated_at = now() where id = ${claim.id}`;
+        sentCount += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Reminder delivery failed";
+        await sql`update reminder_logs set status = 'failed', error_message = ${message}, updated_at = now() where id = ${claim.id}`;
+      }
     }
-    return NextResponse.json({ sent: reminders.length });
+    const summarySent = await sendDailySummary(sql, process.env.TELEGRAM_ADMIN_CHAT_ID, today);
+    return NextResponse.json({ sent: sentCount, summarySent });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Reminder failed" }, { status: 503 });
   }
