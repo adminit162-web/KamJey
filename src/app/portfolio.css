@@ -10,12 +10,114 @@
   font-weight: 600;
 }
 
+.dashboard-report-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 28px;
+  padding: 15px 17px;
+  border: 1px solid #dfe7ec;
+  border-radius: 13px;
+  background: #fff;
+}
+
+.dashboard-report-bar > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.dashboard-report-bar > div:first-child span,
+.dashboard-report-bar > div:first-child small {
+  color: #788692;
+  font-size: 11px;
+}
+
+.dashboard-report-bar > div:first-child span {
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.dashboard-report-bar > div:first-child strong {
+  color: #203b51;
+  font-size: 18px;
+}
+
+.dashboard-report-bar .dashboard-period {
+  margin-bottom: 0;
+}
+
 .portfolio-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
   margin-bottom: 12px;
+}
+
+.portfolio-period {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.portfolio-period > button {
+  height: 40px;
+  min-width: 40px;
+  border: 1px solid #d6e0e6;
+  border-radius: 9px;
+  background: #fff;
+  color: #294661;
+  font: 700 20px inherit;
+  cursor: pointer;
+}
+
+.portfolio-period > button:disabled {
+  color: #a9b3bb;
+  background: #f3f5f6;
+  cursor: not-allowed;
+}
+
+.portfolio-period label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  min-width: 210px;
+  border: 1px solid #d6e0e6;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.portfolio-period label > span {
+  padding-left: 12px;
+  color: #7b8994;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.portfolio-period select {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  padding: 0 10px;
+  background: transparent;
+  color: #243f57;
+  font: 700 12px inherit;
+  cursor: pointer;
+}
+
+.portfolio-period > .portfolio-current-month {
+  width: auto;
+  padding: 0 12px;
+  color: #4f6578;
+  font-size: 11px;
 }
 
 .portfolio-filter-controls {
@@ -46,23 +148,6 @@
   background: #fff;
   color: #243f57;
   box-shadow: 0 2px 8px #233a4c14;
-}
-
-.portfolio-secondary-filter {
-  height: 40px;
-  padding: 0 34px 0 12px;
-  border: 1px solid #d6e0e6;
-  border-radius: 9px;
-  background: #fff;
-  color: #5f6f7c;
-  font: 700 12px inherit;
-  cursor: pointer;
-}
-
-.portfolio-secondary-filter.active {
-  border-color: #7290a6;
-  color: #243f57;
-  box-shadow: 0 0 0 3px #45698414;
 }
 
 .portfolio-search {
@@ -368,7 +453,7 @@
   display: grid;
   grid-template-columns: minmax(330px, 1fr) minmax(330px, 1fr) minmax(230px, .72fr);
   gap: 17px;
-  margin: 38px 0 42px;
+  margin: 18px 0 42px;
 }
 
 .donut-card,
@@ -413,6 +498,8 @@
 @media(max-width:800px) {
   .analytics-grid { grid-template-columns: 1fr; margin: 28px 0; }
   .analytics-kpis { grid-column: auto; grid-template-columns: 1fr; }
+  .dashboard-report-bar { align-items: stretch; flex-direction: column; }
+  .dashboard-report-bar .dashboard-period { width: 100%; }
 }
 
 @media(max-width:440px) {
@@ -513,6 +600,19 @@
     display: none;
   }
 
+  .portfolio-period {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+  }
+
+  .portfolio-period label {
+    min-width: 0;
+  }
+
+  .portfolio-period > .portfolio-current-month {
+    grid-column: 1 / -1;
+  }
+
   .portfolio-toolbar {
     align-items: stretch;
     flex-direction: column-reverse;
@@ -521,10 +621,6 @@
   .portfolio-filter-controls {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .portfolio-secondary-filter {
-    width: 100%;
   }
 
   .portfolio-search {

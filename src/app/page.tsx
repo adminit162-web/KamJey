@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLanguage } from "./language-provider";
 
 type LoanStatus = "Due soon" | "Active" | "Overdue" | "Paid";
-type LoanFilter = "All" | "Needs attention" | "Paid this month" | "Paid off";
-type SecondaryFilter = "All loans" | "Interest-free" | "Active";
+type LoanFilter = "All" | "Needs attention" | "Monthly payments" | "Paid off";
+type MonthlyStatus = "Paid this month" | "Paid off" | "Unpaid" | "Not due yet";
 type BorrowingTopup = { amount: number; toppedUpAt: string };
 type Loan = {
   id: string; loanNumber: number; borrower: string; initials: string; color: string;
@@ -13,8 +13,11 @@ type Loan = {
   interestDueSince: string | null; rate: number; start: string; nextPayment: string; paymentDay: number;
   paid: number; interestPaid: number; principalPaid: number; paymentCount: number;
   currentMonthPaid: number; currentMonthInterestPaid: number; currentMonthPrincipalPaid: number; latestMonthPaymentDate: string | null;
+  periodPaid: number; periodInterestPaid: number; periodPrincipalPaid: number; latestPeriodPaymentDate: string | null;
+  periodOpeningPrincipal: number; periodClosingPrincipal: number; periodTopups: number; periodTopupInterest: number;
   totalTopups: number; topupHistory: BorrowingTopup[]; status: LoanStatus;
 };
+type MonthlyLoan = Loan & { monthlyStatus: MonthlyStatus; periodDueDate: string; newInPeriod: boolean };
 type Payment = { id: string; amount: number; interestAmount: number; principalAmount: number; paidAt: string; method: string | null; note: string | null };
 type Topup = { id: string; amount: number; toppedUpAt: string; partialInterest: number; principalBefore: number; principalAfter: number; note: string | null };
 
@@ -31,6 +34,10 @@ const daysUntil = (value: string) => Math.ceil((dateFromSql(value).getTime() - n
 const loanStatus = (status: string, nextPayment: string, dueSince?: string | null): LoanStatus => status === "paid" ? "Paid" : dueSince && daysUntil(dueSince) < 0 ? "Overdue" : dueSince || daysUntil(nextPayment) <= 7 ? "Due soon" : "Active";
 const initials = (name: string) => name.split(" ").filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 const localToday = () => { const today = new Date(); return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`; };
+const localMonth = () => localToday().slice(0, 7);
+const shiftMonth = (month: string, amount: number) => { const [year, monthNumber] = month.split("-").map(Number); const shifted = new Date(year, monthNumber - 1 + amount, 1); return `${shifted.getFullYear()}-${String(shifted.getMonth() + 1).padStart(2, "0")}`; };
+const monthDueDate = (month: string, preferredDay: number) => { const [year, monthNumber] = month.split("-").map(Number); const lastDay = new Date(year, monthNumber, 0).getDate(); return `${month}-${String(Math.min(preferredDay, lastDay)).padStart(2, "0")}`; };
+const previousDay = (value: string) => { const date = dateFromSql(value); date.setDate(date.getDate() - 1); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; };
 const nextMonthlyDate = (value: string, preferredDay: number) => { const current = dateFromSql(value); const year = current.getFullYear() + (current.getMonth() === 11 ? 1 : 0); const month = (current.getMonth() + 1) % 12; const lastDay = new Date(year, month + 1, 0).getDate(); return `${year}-${String(month + 1).padStart(2, "0")}-${String(Math.min(preferredDay, lastDay)).padStart(2, "0")}`; };
 const previousMonthlyDate = (value: string, preferredDay: number) => { const current = dateFromSql(value); const year = current.getFullYear() - (current.getMonth() === 0 ? 1 : 0); const month = (current.getMonth() + 11) % 12; const lastDay = new Date(year, month + 1, 0).getDate(); return `${year}-${String(month + 1).padStart(2, "0")}-${String(Math.min(preferredDay, lastDay)).padStart(2, "0")}`; };
 const dateDays = (later: string, earlier: string) => Math.round((Date.parse(`${later}T00:00:00Z`) - Date.parse(`${earlier}T00:00:00Z`)) / 86_400_000);
@@ -48,12 +55,12 @@ function mapLoan(record: Record<string, unknown>, index: number): Loan {
     id: String(record.id), loanNumber: Number(record.loan_number), borrower: String(record.borrower), initials: initials(String(record.borrower)), color: colors[index % colors.length],
     principal: Number(record.principal), currentPrincipal: Number(record.current_principal), accruedInterest: Number(record.accrued_interest), nextInterestAdjustment: Number(record.next_interest_adjustment),
     interestDueSince: record.interest_due_since ? String(record.interest_due_since) : null, rate: Number(record.rate), start: String(record.start_date), nextPayment: String(record.next_payment_date), paymentDay: Number(record.payment_day),
-    paid: Number(record.paid), interestPaid: Number(record.interest_paid), principalPaid: Number(record.principal_paid), paymentCount: Number(record.payment_count), currentMonthPaid: Number(record.current_month_paid), currentMonthInterestPaid: Number(record.current_month_interest_paid), currentMonthPrincipalPaid: Number(record.current_month_principal_paid), latestMonthPaymentDate: record.latest_month_payment_date ? String(record.latest_month_payment_date) : null, totalTopups: Number(record.total_topups), topupHistory, status: loanStatus(String(record.status), String(record.next_payment_date), record.interest_due_since ? String(record.interest_due_since) : null),
+    paid: Number(record.paid), interestPaid: Number(record.interest_paid), principalPaid: Number(record.principal_paid), paymentCount: Number(record.payment_count), currentMonthPaid: Number(record.current_month_paid), currentMonthInterestPaid: Number(record.current_month_interest_paid), currentMonthPrincipalPaid: Number(record.current_month_principal_paid), latestMonthPaymentDate: record.latest_month_payment_date ? String(record.latest_month_payment_date) : null, periodPaid: Number(record.period_paid), periodInterestPaid: Number(record.period_interest_paid), periodPrincipalPaid: Number(record.period_principal_paid), latestPeriodPaymentDate: record.latest_period_payment_date ? String(record.latest_period_payment_date) : null, periodOpeningPrincipal: Number(record.period_opening_principal), periodClosingPrincipal: Number(record.period_closing_principal), periodTopups: Number(record.period_topups), periodTopupInterest: Number(record.period_topup_interest), totalTopups: Number(record.total_topups), topupHistory, status: loanStatus(String(record.status), String(record.next_payment_date), record.interest_due_since ? String(record.interest_due_since) : null),
   };
 }
 
-async function fetchLoans(): Promise<Loan[]> {
-  const response = await fetch("/api/loans");
+async function fetchLoans(month = localMonth()): Promise<Loan[]> {
+  const response = await fetch(`/api/loans?month=${encodeURIComponent(month)}`);
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || "Unable to load loans.");
   return body.map((record: Record<string, unknown>, index: number) => mapLoan(record, index));
@@ -87,55 +94,61 @@ export default function Home() {
   const [loadError, setLoadError] = useState("");
   const [loanSearch, setLoanSearch] = useState("");
   const [loanFilter, setLoanFilter] = useState<LoanFilter>("All");
-  const [secondaryFilter, setSecondaryFilter] = useState<SecondaryFilter>("All loans");
+  const [selectedMonth, setSelectedMonth] = useState(localMonth);
+
+  const monthOptions = useMemo(() => Array.from({ length: 12 }, (_, index) => shiftMonth(localMonth(), -index)), []);
+  const selectedMonthLabel = readableMonth(`${selectedMonth}-01`, locale);
+  const selectedMonthIndex = monthOptions.indexOf(selectedMonth);
 
   const loadLoans = useCallback(async () => {
-    setLoans(await fetchLoans());
-  }, []);
+    setLoans(await fetchLoans(selectedMonth));
+  }, [selectedMonth]);
 
   useEffect(() => {
     let cancelled = false;
-    fetchLoans()
+    fetchLoans(selectedMonth)
       .then((loadedLoans) => { if (!cancelled) setLoans(loadedLoans); })
       .catch((error: Error) => { if (!cancelled) setLoadError(error.message); });
     return () => { cancelled = true; };
-  }, []);
+  }, [selectedMonth]);
 
-  const totals = useMemo(() => {
-    const principalOwed = loans.reduce((sum, loan) => sum + loan.currentPrincipal, 0);
-    const interestLeftThisMonth = loans.reduce((sum, loan) => {
-      if (loan.status === "Paid" || loan.rate === 0) return sum;
-      if (loan.accruedInterest > 0) return sum + loan.accruedInterest;
-      if (loan.currentMonthInterestPaid > 0) return sum;
-      return sum + scheduledInterest(loan);
-    }, 0);
-    return {
-      toCollect: principalOwed + interestLeftThisMonth,
-      principalOwed,
-      interestLeftThisMonth,
-      expectedMonthlyInterest: loans.filter((loan) => loan.status !== "Paid").reduce((sum, loan) => sum + fullMonthInterest(loan), 0),
-      receivedThisMonth: loans.reduce((sum, loan) => sum + loan.currentMonthPaid, 0),
-      interestReceivedThisMonth: loans.reduce((sum, loan) => sum + loan.currentMonthInterestPaid, 0),
-      principalReceivedThisMonth: loans.reduce((sum, loan) => sum + loan.currentMonthPrincipalPaid, 0),
-      dueSoon: loans.filter((loan) => loan.status === "Due soon" || loan.status === "Overdue").length,
-      statuses: {
-        overdue: loans.filter((loan) => loan.status === "Overdue").length,
-        dueSoon: loans.filter((loan) => loan.status === "Due soon").length,
-        active: loans.filter((loan) => loan.status === "Active").length,
-        paid: loans.filter((loan) => loan.status === "Paid").length,
-      },
-    };
-  }, [loans]);
-  const visibleLoans = useMemo(() => {
-    const query = loanSearch.trim().toLowerCase();
-    return loans.filter((loan) => {
-      const matchesSearch = !query || loan.borrower.toLowerCase().includes(query) || `kj-${String(loan.loanNumber).padStart(4, "0")}`.includes(query);
-      const paidThisMonth = loan.currentMonthPaid > 0 && loan.accruedInterest === 0 && loan.status !== "Paid" && loan.status !== "Overdue";
-      const matchesFilter = loanFilter === "All" || loanFilter === "Needs attention" && (loan.status === "Due soon" || loan.status === "Overdue") || loanFilter === "Paid this month" && loan.currentMonthPaid > 0 || loanFilter === "Paid off" && loan.status === "Paid";
-      const matchesSecondaryFilter = secondaryFilter === "All loans" || secondaryFilter === "Interest-free" && loan.rate === 0 || secondaryFilter === "Active" && loan.status === "Active" && !paidThisMonth;
-      return matchesSearch && matchesFilter && matchesSecondaryFilter;
-    });
-  }, [loanFilter, loanSearch, loans, secondaryFilter]);
+  const periodStart = `${selectedMonth}-01`;
+  const periodEnd = `${shiftMonth(selectedMonth, 1)}-01`;
+  const reportDate = selectedMonth === localMonth() ? localToday() : previousDay(periodEnd);
+  const reportDateLabel = readableDate(reportDate);
+  const monthlyLoans: MonthlyLoan[] = loans.filter((loan) => loan.start.slice(0, 10) <= reportDate && (loan.periodOpeningPrincipal > 0 || loan.periodClosingPrincipal > 0 || loan.start.slice(0, 10) >= periodStart)).map((loan) => {
+    const periodDueDate = monthDueDate(selectedMonth, loan.paymentDay);
+    const firstDueDate = nextMonthlyDate(loan.start.slice(0, 10), loan.paymentDay);
+    const newInPeriod = loan.start.slice(0, 10) >= periodStart && loan.start.slice(0, 10) < periodEnd;
+    const paidOffInPeriod = loan.periodClosingPrincipal <= 0 && loan.periodPrincipalPaid > 0;
+    const monthlyStatus: MonthlyStatus = paidOffInPeriod ? "Paid off" : loan.periodPaid > 0 ? "Paid this month" : firstDueDate <= reportDate && periodDueDate <= reportDate ? "Unpaid" : "Not due yet";
+    return { ...loan, monthlyStatus, periodDueDate, newInPeriod };
+  });
+  const statuses = {
+    paid: monthlyLoans.filter((loan) => loan.monthlyStatus === "Paid this month").length,
+    unpaid: monthlyLoans.filter((loan) => loan.monthlyStatus === "Unpaid").length,
+    notDue: monthlyLoans.filter((loan) => loan.monthlyStatus === "Not due yet").length,
+    paidOff: monthlyLoans.filter((loan) => loan.monthlyStatus === "Paid off").length,
+  };
+  const totals = {
+    received: monthlyLoans.reduce((sum, loan) => sum + loan.periodPaid, 0),
+    interestReceived: monthlyLoans.reduce((sum, loan) => sum + loan.periodInterestPaid, 0),
+    principalReceived: monthlyLoans.reduce((sum, loan) => sum + loan.periodPrincipalPaid, 0),
+    closingPrincipal: monthlyLoans.reduce((sum, loan) => sum + loan.periodClosingPrincipal, 0),
+    expectedInterest: monthlyLoans.reduce((sum, loan) => {
+      const firstDueDate = nextMonthlyDate(loan.start.slice(0, 10), loan.paymentDay);
+      return firstDueDate <= loan.periodDueDate ? sum + Math.round((loan.periodOpeningPrincipal * loan.rate / 100 + loan.periodTopupInterest) * 100) / 100 : sum;
+    }, 0),
+    fundsIssued: monthlyLoans.reduce((sum, loan) => sum + (loan.newInPeriod ? loan.principal : 0) + loan.periodTopups, 0),
+    newLoans: monthlyLoans.filter((loan) => loan.newInPeriod).length,
+    statuses,
+  };
+  const query = loanSearch.trim().toLowerCase();
+  const visibleLoans = monthlyLoans.filter((loan) => {
+    const matchesSearch = !query || loan.borrower.toLowerCase().includes(query) || `kj-${String(loan.loanNumber).padStart(4, "0")}`.includes(query);
+    const matchesFilter = loanFilter === "All" || loanFilter === "Needs attention" && loan.monthlyStatus === "Unpaid" || loanFilter === "Monthly payments" && loan.periodPaid > 0 || loanFilter === "Paid off" && loan.monthlyStatus === "Paid off";
+    return matchesSearch && matchesFilter;
+  });
   const interestOnPaymentDate = paymentLoan ? projectedInterest(paymentLoan, paymentDate) : 0;
   const enteredPayment = Math.max(0, Number(paymentAmount) || 0);
   const interestAllocation = Math.min(enteredPayment, interestOnPaymentDate);
@@ -242,34 +255,30 @@ export default function Home() {
   }
 
   return <main className="dashboard-page"><header><div><p className="eyebrow">{t("Loan management")}</p><h1>{t("Welcome to KamJey.")}</h1></div><button onClick={() => setShowForm(true)} className="primary-button"><span>＋</span> {t("New loan")}</button></header>
+      <section className="dashboard-report-bar"><div><span>{t("Monthly overview")}</span><strong>{selectedMonthLabel}</strong><small>{t("Data through {date}", { date: reportDateLabel })}</small></div><div className="portfolio-period dashboard-period" aria-label={t("Report month")}><button type="button" onClick={() => selectedMonthIndex < monthOptions.length - 1 && setSelectedMonth(monthOptions[selectedMonthIndex + 1])} disabled={selectedMonthIndex === monthOptions.length - 1} aria-label={t("Previous month")}>‹</button><label><span>{t("Report month")}</span><select value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>{monthOptions.map((month) => <option key={month} value={month}>{readableMonth(`${month}-01`, locale)}</option>)}</select></label><button type="button" onClick={() => selectedMonthIndex > 0 && setSelectedMonth(monthOptions[selectedMonthIndex - 1])} disabled={selectedMonthIndex === 0} aria-label={t("Next month")}>›</button>{selectedMonth !== monthOptions[0] && <button type="button" className="portfolio-current-month" onClick={() => setSelectedMonth(monthOptions[0])}>{t("Current month")}</button>}</div></section>
       <div className="analytics-grid">
-        <ReceivableCard title={t("Money to collect")} copy={t("What borrowers still need to pay.")} totalLabel={t("Total")} total={money(totals.toCollect)} principalLabel={t("Principal left")} principal={money(totals.principalOwed)} interestLabel={t("Interest left this month")} interest={money(totals.interestLeftThisMonth)}/>
-        <DonutCard title={t("Loan status")} copy={t("Current portfolio health")} centerLabel={t("Total loans")} centerValue={String(loans.length)} segments={[{ label: t("Overdue"), value: totals.statuses.overdue, color: "#d95f4f" }, { label: t("Due soon"), value: totals.statuses.dueSoon, color: "#e4a03c" }, { label: t("Active"), value: totals.statuses.active, color: "#3f8b68" }, { label: t("Paid off"), value: totals.statuses.paid, color: "#7890a3" }]}/>
-        <div className="analytics-kpis"><Metric label={t("Expected monthly interest")} value={money(totals.expectedMonthlyInterest)} detail={t("Based on current balances")}/><Metric label={t("Needs attention")} value={String(totals.dueSoon).padStart(2, "0")} detail={t(totals.dueSoon ? "Requires attention" : "Portfolio is clear")} alert={totals.dueSoon > 0}/><Metric label={t("Received this month")} value={money(totals.receivedThisMonth)} detail={t("{principal} principal · {interest} interest", { principal: money(totals.principalReceivedThisMonth), interest: money(totals.interestReceivedThisMonth) })}/></div>
+        <ReceivableCard title={t("Collected in {month}", { month: selectedMonthLabel })} copy={t("Payments recorded during this month.")} totalLabel={t("Total received")} total={money(totals.received)} principalLabel={t("Principal collected")} principal={money(totals.principalReceived)} interestLabel={t("Interest collected")} interest={money(totals.interestReceived)}/>
+        <DonutCard title={t("Payment status in {month}", { month: selectedMonthLabel })} copy={t("Status as of {date}", { date: reportDateLabel })} centerLabel={t("Loans in month")} centerValue={String(monthlyLoans.length)} segments={[{ label: t("Paid this month"), value: totals.statuses.paid, color: "#3f8b68" }, { label: t("Unpaid"), value: totals.statuses.unpaid, color: "#d95f4f" }, { label: t("Not due yet"), value: totals.statuses.notDue, color: "#e4a03c" }, { label: t("Paid off"), value: totals.statuses.paidOff, color: "#7890a3" }]}/>
+        <div className="analytics-kpis"><Metric label={t("Closing principal")} value={money(totals.closingPrincipal)} detail={t("As of {date}", { date: reportDateLabel })}/><Metric label={t("Expected interest in {month}", { month: selectedMonthLabel })} value={money(totals.expectedInterest)} detail={t("Based on opening balances")}/><Metric label={t("Funds issued in {month}", { month: selectedMonthLabel })} value={money(totals.fundsIssued)} detail={t("{count} new loan(s)", { count: totals.newLoans })}/></div>
       </div>
-      <div className="section-heading portfolio-heading"><div><h2>{t("Loan portfolio")}</h2><p>{t("Balances, upcoming payments and account status at a glance.")}</p></div><span>{t("{shown} of {total} loans", { shown: visibleLoans.length, total: loans.length })}</span></div>
+      <div className="section-heading portfolio-heading"><div><h2>{t("Loan activity in {month}", { month: selectedMonthLabel })}</h2><p>{t("Opening balances, payments and closing balances for the selected month.")}</p></div><span>{t("{shown} of {total} loans", { shown: visibleLoans.length, total: monthlyLoans.length })}</span></div>
       {loadError && <p className="database-notice">{loadError}</p>}
-      <div className="portfolio-toolbar"><div className="portfolio-filter-controls"><div className="portfolio-filters" role="group" aria-label={t("Loans")}>{(["All", "Needs attention", "Paid this month", "Paid off"] as LoanFilter[]).map((filter) => <button type="button" className={loanFilter === filter ? "active" : ""} key={filter} onClick={() => setLoanFilter(filter)}>{t(filter)}</button>)}</div><select className={secondaryFilter === "All loans" ? "portfolio-secondary-filter" : "portfolio-secondary-filter active"} value={secondaryFilter} onChange={(event) => setSecondaryFilter(event.target.value as SecondaryFilter)} aria-label={t("More filters")}><option value="All loans">{t("More filters")}</option><option value="Interest-free">{t("Interest-free")}</option><option value="Active">{t("Active")}</option></select></div><label className="portfolio-search"><span aria-hidden="true">⌕</span><input value={loanSearch} onChange={(event) => setLoanSearch(event.target.value)} placeholder={t("Search borrower or loan ID")} aria-label={t("Search borrower or loan ID")} /></label></div>
-      <div className={`portfolio-table ${loanFilter === "Paid this month" ? "paid-month-view" : ""}`}><div className="portfolio-table-head"><span>{t("Borrower")}</span><span>{t("Outstanding balance")}</span><span>{t(loanFilter === "Paid this month" ? "Paid this month" : "Loan status")}</span><span>{t("Next payment")}</span>{loanFilter !== "Paid this month" && <span aria-label={t("Manage")}/>}</div>
+      <div className="portfolio-toolbar"><div className="portfolio-filter-controls"><div className="portfolio-filters" role="group" aria-label={t("Loans")}>{(["All", "Needs attention", "Monthly payments", "Paid off"] as LoanFilter[]).map((filter) => <button type="button" className={loanFilter === filter ? "active" : ""} key={filter} onClick={() => setLoanFilter(filter)}>{t(filter)}</button>)}</div></div><label className="portfolio-search"><span aria-hidden="true">⌕</span><input value={loanSearch} onChange={(event) => setLoanSearch(event.target.value)} placeholder={t("Search borrower or loan ID")} aria-label={t("Search borrower or loan ID")} /></label></div>
+      <div className="portfolio-table"><div className="portfolio-table-head"><span>{t("Borrower")}</span><span>{t("Closing balance")}</span><span>{t("Month status")}</span><span>{t("Paid in {month}", { month: selectedMonthLabel })}</span><span aria-label={t("Manage")}/></div>
         {visibleLoans.length ? visibleLoans.map((loan) => {
-          const dueReference = loan.interestDueSince || loan.nextPayment;
-          const days = daysUntil(dueReference);
-          const statusText = loan.status === "Paid" ? t("Paid in full") : loan.status === "Overdue" ? t("{days} day(s) overdue", { days: Math.abs(days) }) : loan.status === "Due soon" ? days === 0 ? t("Due today") : t("Due in {days} day(s)", { days }) : "";
-          const paidThisMonth = loan.currentMonthPaid > 0 && loan.accruedInterest === 0 && loan.status !== "Paid" && loan.status !== "Overdue";
-          const statusLabel = loan.status === "Paid" ? t("Paid off") : paidThisMonth ? t("Paid this month") : t(loan.status);
-          const paidMonthLabel = loan.latestMonthPaymentDate ? t("Paid for {month}", { month: readableMonth(loan.latestMonthPaymentDate, locale) }) : "";
-          const statusClass = paidThisMonth ? "paid-month" : loan.status.toLowerCase().replace(" ", "-");
-          const monthlyBreakdown = loan.currentMonthInterestPaid > 0 && loan.currentMonthPrincipalPaid > 0 ? t("{principal} principal · {interest} interest", { principal: compactMoney(loan.currentMonthPrincipalPaid), interest: compactMoney(loan.currentMonthInterestPaid) }) : loan.currentMonthPrincipalPaid > 0 ? t("{amount} principal", { amount: compactMoney(loan.currentMonthPrincipalPaid) }) : t("{amount} interest", { amount: compactMoney(loan.currentMonthInterestPaid) });
-          const balanceBreakdown = loan.rate === 0 ? t("Interest-free loan") : loan.accruedInterest > 0 ? t("{principal} principal · {interest} unpaid interest", { principal: money(loan.currentPrincipal), interest: money(loan.accruedInterest) }) : t("{rate}% monthly interest", { rate: loan.rate.toLocaleString("en-US", { maximumFractionDigits: 3 }) });
-          const nextPaymentCell = <div className="portfolio-next-payment"><strong>{loan.rate === 0 ? t("Principal payment") : money(displayedInterestDue(loan))}</strong><small>{readableDate(dueReference)}</small></div>;
+          const firstDueDate = nextMonthlyDate(loan.start.slice(0, 10), loan.paymentDay);
+          const dueDate = firstDueDate > loan.periodDueDate ? firstDueDate : loan.periodDueDate;
+          const statusClass = loan.monthlyStatus === "Paid this month" ? "paid-month" : loan.monthlyStatus === "Paid off" ? "paid" : loan.monthlyStatus === "Unpaid" ? "overdue" : "active";
+          const statusDetail = loan.latestPeriodPaymentDate ? t("Last paid on {date}", { date: displayDate(loan.latestPeriodPaymentDate) }) : t("Due {date}", { date: displayDate(dueDate) });
+          const monthlyBreakdown = loan.periodPaid <= 0 ? t("No payment recorded") : loan.periodInterestPaid > 0 && loan.periodPrincipalPaid > 0 ? t("{principal} principal · {interest} interest", { principal: compactMoney(loan.periodPrincipalPaid), interest: compactMoney(loan.periodInterestPaid) }) : loan.periodPrincipalPaid > 0 ? t("{amount} principal", { amount: compactMoney(loan.periodPrincipalPaid) }) : t("{amount} interest", { amount: compactMoney(loan.periodInterestPaid) });
           return <article className="portfolio-row" key={loan.id}>
             <div className="portfolio-borrower"><div className={`avatar ${loan.color}`}>{loan.initials}</div><div><strong>{loan.borrower}</strong><small>KJ-{String(loan.loanNumber).padStart(4, "0")}</small></div></div>
-            <div className="portfolio-balance"><strong>{money(loan.currentPrincipal + loan.accruedInterest)}</strong><small>{balanceBreakdown}</small></div>
-            {loanFilter === "Paid this month" ? <div className="portfolio-month-payment"><strong>{money(loan.currentMonthPaid)}</strong><small>{monthlyBreakdown}</small>{loan.latestMonthPaymentDate && <time>{t("Last paid on {date}", { date: displayDate(loan.latestMonthPaymentDate) })}</time>}</div> : <div className="portfolio-status"><span className={`status-pill ${statusClass}`}>{statusLabel}</span>{paidThisMonth && paidMonthLabel && <small>{paidMonthLabel}</small>}{!paidThisMonth && statusText && <small>{statusText}</small>}</div>}
-            {nextPaymentCell}
-            {loanFilter !== "Paid this month" && <div className="portfolio-actions"><div className="split-action"><button type="button" className="action-button pay-action" disabled={loan.status === "Paid"} onClick={() => openPayment(loan)}>{t(loan.status === "Paid" ? "Paid" : "Pay")}</button><div className="more-actions"><button type="button" className="more-trigger" aria-label={`${t("Manage")} ${loan.borrower}`} aria-expanded={actionMenu === loan.id} onClick={() => setActionMenu((current) => current === loan.id ? null : loan.id)}><svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button>{actionMenu === loan.id && <div className="actions-menu"><button onClick={() => { setActionMenu(null); openHistory(loan); }}><span>↺</span><span><strong>{t("View history")}</strong><small>{t("{count} recorded activities", { count: loan.paymentCount + loan.topupHistory.length })}</small></span></button><button disabled={loan.status === "Paid"} onClick={() => { setActionMenu(null); openTopup(loan); }}><span>＋</span><span><strong>{t("Add funds")}</strong><small>{t("Increase this loan")}</small></span></button><button onClick={() => { setActionMenu(null); setEditError(""); setEditLoan(loan); }}><span>✎</span><span><strong>{t("Edit loan")}</strong><small>{t("Name, rate or due date")}</small></span></button><button className="menu-delete" onClick={() => { setActionMenu(null); deleteLoan(loan); }}><span>⌫</span><span><strong>{t("Delete loan")}</strong><small>{t("Remove loan and history")}</small></span></button></div>}</div></div></div>}
+            <div className="portfolio-balance"><strong>{money(loan.periodClosingPrincipal)}</strong><small>{t("Opened {opening} · closed {closing}", { opening: compactMoney(loan.periodOpeningPrincipal), closing: compactMoney(loan.periodClosingPrincipal) })}</small></div>
+            <div className="portfolio-status"><span className={`status-pill ${statusClass}`}>{t(loan.monthlyStatus)}</span><small>{statusDetail}</small></div>
+            <div className="portfolio-month-payment"><strong>{money(loan.periodPaid)}</strong><small>{monthlyBreakdown}</small></div>
+            <div className="portfolio-actions"><div className="split-action"><button type="button" className="action-button pay-action" disabled={loan.status === "Paid"} onClick={() => openPayment(loan)}>{t(loan.status === "Paid" ? "Paid" : "Pay")}</button><div className="more-actions"><button type="button" className="more-trigger" aria-label={`${t("Manage")} ${loan.borrower}`} aria-expanded={actionMenu === loan.id} onClick={() => setActionMenu((current) => current === loan.id ? null : loan.id)}><svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button>{actionMenu === loan.id && <div className="actions-menu"><button onClick={() => { setActionMenu(null); openHistory(loan); }}><span>↺</span><span><strong>{t("View history")}</strong><small>{t("{count} recorded activities", { count: loan.paymentCount + loan.topupHistory.length })}</small></span></button><button disabled={loan.status === "Paid"} onClick={() => { setActionMenu(null); openTopup(loan); }}><span>＋</span><span><strong>{t("Add funds")}</strong><small>{t("Increase this loan")}</small></span></button><button onClick={() => { setActionMenu(null); setEditError(""); setEditLoan(loan); }}><span>✎</span><span><strong>{t("Edit loan")}</strong><small>{t("Name, rate or due date")}</small></span></button><button className="menu-delete" onClick={() => { setActionMenu(null); deleteLoan(loan); }}><span>⌫</span><span><strong>{t("Delete loan")}</strong><small>{t("Remove loan and history")}</small></span></button></div>}</div></div></div>
           </article>;
-        }) : loans.length ? <div className="empty-state"><div className="empty-icon">⌕</div><h3>{t("No matching loans")}</h3><p>{t("Try another name, loan ID, or status filter.")}</p><button onClick={() => { setLoanSearch(""); setLoanFilter("All"); setSecondaryFilter("All loans"); }} className="primary-button">{t("Clear filters")}</button></div> : <div className="empty-state"><div className="empty-icon">◫</div><h3>{t("No loans yet")}</h3><p>{t("Create your first loan to begin monthly interest tracking.")}</p><button onClick={() => setShowForm(true)} className="primary-button">{t("Create your first loan")}</button></div>}
+        }) : monthlyLoans.length ? <div className="empty-state"><div className="empty-icon">⌕</div><h3>{loanFilter === "Monthly payments" && !loanSearch ? t("No payments in {month}", { month: selectedMonthLabel }) : t("No matching loans")}</h3><p>{t("Try another name, loan ID, or status filter.")}</p><button onClick={() => { setLoanSearch(""); setLoanFilter("All"); }} className="primary-button">{t("Clear filters")}</button></div> : loans.length ? <div className="empty-state"><div className="empty-icon">◫</div><h3>{t("No loan activity in {month}", { month: selectedMonthLabel })}</h3><p>{t("Choose another month to review its activity.")}</p>{selectedMonthIndex < monthOptions.length - 1 && <button onClick={() => setSelectedMonth(monthOptions[selectedMonthIndex + 1])} className="primary-button">{t("View previous month")}</button>}</div> : <div className="empty-state"><div className="empty-icon">◫</div><h3>{t("No loans yet")}</h3><p>{t("Create your first loan to begin monthly interest tracking.")}</p><button onClick={() => setShowForm(true)} className="primary-button">{t("Create your first loan")}</button></div>}
       </div>
     {showForm && <Modal close={() => setShowForm(false)}><form onSubmit={addLoan}><ModalTitle eyebrow={t("NEW RECORD")} title={t("Create a loan")} close={() => setShowForm(false)}/><label>{t("Borrower name")}<input required maxLength={120} name="borrower" placeholder={t("e.g. Jamie Lee")} /></label><div className="form-grid"><label>{t("Principal amount")}<input required name="principal" type="number" min="0.01" step="0.01" /></label><label>{t("Monthly rate (%)")}<input required name="rate" type="number" min="0" max="100" step="0.001" /></label></div><label><span className="date-label"><span>{t("Start date")}</span><i className="date-format">DD/MM/YY</i></span><span className="formatted-date-input"><span className={createStart ? "selected-date" : "date-placeholder"}>{createStart ? displayDate(createStart) : t("Choose a date")}</span><span className="calendar-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg></span><input required aria-label={t("Start date")} name="start" type="date" value={createStart} onClick={(event) => event.currentTarget.showPicker()} onChange={(event) => setCreateStart(event.target.value)}/></span><small className="field-help">{t("Click anywhere in the field to choose a date. The first interest payment is due one month later.")}</small></label><button className="primary-button submit">{t("Create loan")}</button></form></Modal>}
 
