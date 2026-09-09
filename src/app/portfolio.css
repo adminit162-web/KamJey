@@ -745,3 +745,16 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Keep export beside search, allowing the toolbar to wrap on smaller screens. */
+.portfolio-toolbar { flex-wrap: wrap; }
+.portfolio-download-controls { display: flex; align-items: center; gap: 10px; margin-left: auto; max-width: 100%; }
+.portfolio-download-controls .portfolio-search { min-width: 0; flex: 1; }
+.pdf-download-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 10px 14px; border: 1px solid #d8e2eb; border-radius: 10px; background: #fff; color: #294f65; font: inherit; font-size: 13px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.pdf-download-button:hover:not(:disabled) { background: #edf3f7; }
+.pdf-download-button:focus-visible { outline: 2px solid #294f65; outline-offset: 3px; }
+.pdf-download-button:disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 700px) {
+  .portfolio-download-controls { width: 100%; margin-left: 0; flex-wrap: wrap; }
+  .portfolio-download-controls .portfolio-search { flex-basis: 180px; }
+}

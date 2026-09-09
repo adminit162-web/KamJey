@@ -106,6 +106,10 @@ export default function Home() {
   const [loanFilter, setLoanFilter] = useState<LoanFilter>("All");
   const [managementFilter, setManagementFilter] = useState<ManagementFilter>("All management");
   const [selectedMonth, setSelectedMonth] = useState(localMonth);
+  const [loadedMonth, setLoadedMonth] = useState("");
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const pdfBusyRef = useRef(false);
+  const [pdfError, setPdfError] = useState("");
 
   const monthOptions = useMemo(() => Array.from({ length: 12 }, (_, index) => shiftMonth(localMonth(), -index)), []);
   const selectedMonthLabel = readableMonth(`${selectedMonth}-01`, locale);
@@ -118,7 +122,7 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false;
     fetchLoans(selectedMonth)
-      .then((loadedLoans) => { if (!cancelled) setLoans(loadedLoans); })
+      .then((loadedLoans) => { if (!cancelled) { setLoans(loadedLoans); setLoadedMonth(selectedMonth); setLoadError(""); } })
       .catch((error: Error) => { if (!cancelled) setLoadError(error.message); });
     return () => { cancelled = true; };
   }, [selectedMonth]);
@@ -173,6 +177,42 @@ export default function Home() {
   const topupPartialInterest = topupLoan && topupPeriodDays > 0 ? Math.round(enteredTopup * topupLoan.rate / 100 * topupRemainingDays / topupPeriodDays * 100) / 100 : 0;
   const topupInterestAtNextDue = topupLoan ? Math.round((scheduledInterest(topupLoan) + topupPartialInterest) * 100) / 100 : 0;
   const topupFollowingFullMonthInterest = topupLoan ? Math.round((topupLoan.currentPrincipal + enteredTopup) * topupLoan.rate) / 100 : 0;
+
+  async function downloadPdf() {
+    if (pdfBusyRef.current || loadedMonth !== selectedMonth || !visibleLoans.length || loadError) return;
+    pdfBusyRef.current = true;
+    setPdfBusy(true);
+    setPdfError("");
+    const sum = (getValue: (loan: MonthlyLoan) => number) => money(visibleLoans.reduce((total, loan) => total + getValue(loan), 0));
+    const report = {
+      title: t("Loan activity in {month}", { month: selectedMonthLabel }),
+      subtitle: [t(managementFilter), t(loanFilter), loanSearch.trim() ? `${t("Search")}: ${loanSearch.trim()}` : "", t("{count} loans", { count: visibleLoans.length })].filter(Boolean).join(" · "),
+      generated: `${t("Exported")}: ${new Date().toLocaleString(locale)} · ${t("As of {date}", { date: reportDateLabel })}`,
+      filename: `KamJey-loans-${selectedMonth}-${managementFilter === "All management" ? "all" : managementFilter}.pdf`,
+      headings: ["Borrower", "Management", "Month status", "Closing balance", "Monthly interest", "Principal collected", "Interest collected", "Total received", "Due date", "Last payment"].map((label) => t(label)),
+      rows: visibleLoans.map((loan) => {
+        const firstDueDate = nextMonthlyDate(loan.start.slice(0, 10), loan.paymentDay);
+        return [
+          `${loan.borrower}\nKJ-${String(loan.loanNumber).padStart(4, "0")}`, loan.management,
+          loan.monthlyStatus === "Paid this month" ? t("Paid during {month}", { month: selectedMonthLabel }) : t(loan.monthlyStatus),
+          money(loan.periodClosingPrincipal), money(Math.round(loan.periodClosingPrincipal * loan.rate) / 100),
+          money(loan.periodPrincipalPaid), money(loan.periodInterestPaid), money(loan.periodPaid),
+          displayDate(firstDueDate > loan.periodDueDate ? firstDueDate : loan.periodDueDate),
+          loan.latestPeriodPaymentDate ? displayDate(loan.latestPeriodPaymentDate) : "—",
+        ];
+      }),
+      totals: [t("Total"), "", "", sum((loan) => loan.periodClosingPrincipal), sum((loan) => Math.round(loan.periodClosingPrincipal * loan.rate) / 100), sum((loan) => loan.periodPrincipalPaid), sum((loan) => loan.periodInterestPaid), sum((loan) => loan.periodPaid), "", ""],
+    };
+    try {
+      const { downloadLoanListPdf } = await import("@/lib/loan-list-pdf");
+      await downloadLoanListPdf(report);
+    } catch {
+      setPdfError(t("Unable to download PDF. Please try again."));
+    } finally {
+      pdfBusyRef.current = false;
+      setPdfBusy(false);
+    }
+  }
 
   function openPayment(loan: Loan) { setPaymentLoan(loan); setPaymentAmount(""); setPaymentDate(localToday()); }
   function openTopup(loan: Loan) { setTopupLoan(loan); setTopupAmount(""); setTopupDate(localToday()); }
@@ -304,7 +344,8 @@ export default function Home() {
       </div>
       <div className="section-heading portfolio-heading"><div><h2>{t("Loan activity in {month}", { month: selectedMonthLabel })}</h2><p>{t("Opening balances, payments and closing balances for the selected month.")}</p></div><span>{t("{shown} of {total} loans", { shown: visibleLoans.length, total: monthlyLoans.length })}</span></div>
       {loadError && <p className="database-notice">{loadError}</p>}
-      <div className="portfolio-toolbar"><div className="portfolio-filter-controls"><label className="management-select"><select value={managementFilter} onChange={(event) => setManagementFilter(event.target.value as ManagementFilter)} aria-label={t("Management")}><option value="All management">{t("All management")}</option><option value="Manith">Manith</option><option value="Linda">Linda</option></select></label><div className="portfolio-filters" role="group" aria-label={t("Loans")}>{(["All", "Needs attention", "Monthly payments", "Paid off"] as LoanFilter[]).map((filter) => <button type="button" className={loanFilter === filter ? "active" : ""} key={filter} onClick={() => setLoanFilter(filter)}>{t(filter)}</button>)}</div></div><label className="portfolio-search"><span aria-hidden="true">⌕</span><input value={loanSearch} onChange={(event) => setLoanSearch(event.target.value)} placeholder={t("Search borrower or loan ID")} aria-label={t("Search borrower or loan ID")} /></label></div>
+      <div className="portfolio-toolbar"><div className="portfolio-filter-controls"><label className="management-select"><select value={managementFilter} onChange={(event) => setManagementFilter(event.target.value as ManagementFilter)} aria-label={t("Management")}><option value="All management">{t("All management")}</option><option value="Manith">Manith</option><option value="Linda">Linda</option></select></label><div className="portfolio-filters" role="group" aria-label={t("Loans")}>{(["All", "Needs attention", "Monthly payments", "Paid off"] as LoanFilter[]).map((filter) => <button type="button" className={loanFilter === filter ? "active" : ""} key={filter} onClick={() => setLoanFilter(filter)}>{t(filter)}</button>)}</div></div><div className="portfolio-download-controls"><label className="portfolio-search"><span aria-hidden="true">⌕</span><input value={loanSearch} onChange={(event) => setLoanSearch(event.target.value)} placeholder={t("Search borrower or loan ID")} aria-label={t("Search borrower or loan ID")} /></label><button type="button" className="pdf-download-button" onClick={downloadPdf} disabled={pdfBusy || loadedMonth !== selectedMonth || !visibleLoans.length || Boolean(loadError)} aria-busy={pdfBusy}><span aria-hidden="true">↓</span> {t(pdfBusy ? "Preparing PDF…" : "Download PDF")}</button></div></div>
+      {pdfError && <p className="database-notice" role="alert">{pdfError}</p>}
       <div className="portfolio-table"><div className="portfolio-table-head"><span>{t("Borrower")}</span><span>{t("Closing balance")}</span><span>{t("Month status")}</span><span>{t("Paid in {month}", { month: selectedMonthLabel })}</span><span aria-label={t("Manage")}/></div>
         {visibleLoans.length ? visibleLoans.map((loan) => {
           const firstDueDate = nextMonthlyDate(loan.start.slice(0, 10), loan.paymentDay);

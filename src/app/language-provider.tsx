@@ -7,6 +7,11 @@ export type Language = "en" | "km";
 type Variables = Record<string, string | number>;
 
 const km: Record<string, string> = {
+  "Download PDF": "ទាញយក PDF", "Preparing PDF…": "កំពុងរៀបចំ PDF…",
+  "Unable to download PDF. Please try again.": "មិនអាចទាញយក PDF បានទេ។ សូមព្យាយាមម្តងទៀត។",
+  "Monthly interest": "ការប្រាក់ប្រចាំខែ",
+  "Exported": "បាននាំចេញ", "Search": "ស្វែងរក", "{count} loans": "កម្ចី {count}",
+  "Last payment": "ការទូទាត់ចុងក្រោយ",
   "Management": "ការគ្រប់គ្រង", "All management": "ការគ្រប់គ្រងជារួម",
   "Paid during {month}": "បានទូទាត់រួចក្នុងខែ {month}",
   "Language": "ភាសា", "Overview": "ទិដ្ឋភាពទូទៅ", "Loans": "ប្រាក់កម្ចី", "Borrowers": "អ្នកខ្ចី", "Payments": "ការទូទាត់", "Settings": "ការកំណត់", "Sign out": "ចាកចេញ", "Personal account": "គណនីផ្ទាល់ខ្លួន",
