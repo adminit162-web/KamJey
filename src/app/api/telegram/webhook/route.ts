@@ -1,69 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendTelegramMessage } from "@/lib/telegram";
-import { telegramLoanLines } from "@/lib/telegram-loan-details";
+import { cambodiaToday, collectionLoanDetails, money } from "@/lib/telegram-collection";
+import { currentTelegramLoans } from "@/lib/telegram-collection-data";
 
-const TIME_ZONE = "Asia/Phnom_Penh";
-const money = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(amount);
-
-type TelegramUpdate = {
-  message?: { text?: string; chat?: { id?: number | string } };
-};
-
-function today() {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone: TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
-}
+type TelegramUpdate = { message?: { text?: string; chat?: { id?: number | string } } };
 
 async function commandReply(text: string) {
-  const sql = db();
-  const currentDate = today();
   const [rawCommand, ...parts] = text.trim().split(/\s+/);
   const command = rawCommand.toLowerCase().split("@")[0];
-  const baseQuery = sql`
-    select l.loan_number, b.full_name as borrower, l.current_principal, l.accrued_interest,
-      l.monthly_interest_rate, l.next_interest_adjustment,
-      to_char(coalesce(l.interest_due_since, l.next_payment_date), 'YYYY-MM-DD') as alert_date
-    from loans l join borrowers b on b.id = l.borrower_id
-    where l.status = 'active'
-  `;
-
-  if (command === "/today") {
-    const rows = await sql`${baseQuery} and coalesce(l.interest_due_since, l.next_payment_date) = ${currentDate}::date order by l.loan_number`;
-    return `<b>⏰ Due today</b>\n\n${telegramLoanLines(rows)}`;
+  if (!["/today", "/overdue", "/upcoming", "/loan", "/borrower", "/summary"].includes(command)) {
+    return ["<b>KamJey loan tracker</b>", "/today — payments due today", "/overdue — overdue loans", "/upcoming — due in 7 days", "/loan KJ-0001 — one loan", "/borrower name — search borrowers", "/summary — portfolio totals", "/help — this list"].join("\n");
   }
-  if (command === "/overdue") {
-    const rows = await sql`${baseQuery} and coalesce(l.interest_due_since, l.next_payment_date) < ${currentDate}::date order by alert_date, l.loan_number`;
-    return `<b>🚨 Overdue loans</b>\n\n${telegramLoanLines(rows)}`;
-  }
-  if (command === "/upcoming") {
-    const rows = await sql`${baseQuery} and coalesce(l.interest_due_since, l.next_payment_date) > ${currentDate}::date and coalesce(l.interest_due_since, l.next_payment_date) <= ${currentDate}::date + 7 order by alert_date, l.loan_number`;
-    return `<b>📅 Due in the next 7 days</b>\n\n${telegramLoanLines(rows)}`;
-  }
+  const loans = await currentTelegramLoans(db(), cambodiaToday());
+  let matches = loans;
+  let heading = "";
+  if (command === "/today") { matches = loans.filter(l => l.days === 0); heading = "⏰ Due today"; }
+  if (command === "/overdue") { matches = loans.filter(l => l.days < 0); heading = "🚨 Overdue loans"; }
+  if (command === "/upcoming") { matches = loans.filter(l => l.days > 0 && l.days <= 7); heading = "📅 Due in the next 7 days"; }
   if (command === "/loan") {
     const number = Number(parts.join("").replace(/^kj-/i, ""));
     if (!Number.isInteger(number) || number <= 0) return "Use: /loan KJ-0001";
-    const rows = await sql`${baseQuery} and l.loan_number = ${number}`;
-    return `<b>🔎 Loan details</b>\n\n${telegramLoanLines(rows)}`;
+    matches = loans.filter(l => l.loanNumber === number); heading = "🔎 Loan details";
   }
   if (command === "/borrower") {
-    const name = parts.join(" ").trim();
+    const name = parts.join(" ").trim().toLowerCase();
     if (name.length < 2) return "Use: /borrower borrower name";
-    const rows = await sql`${baseQuery} and b.full_name ilike ${`%${name}%`} order by l.loan_number limit 20`;
-    return `<b>🔎 Borrower search</b>\n\n${telegramLoanLines(rows)}`;
+    matches = loans.filter(l => l.borrower.toLowerCase().includes(name)).slice(0, 20); heading = "🔎 Borrower search";
   }
   if (command === "/summary") {
-    const [row] = await sql`
-      select count(*)::integer as active,
-        count(*) filter (where coalesce(interest_due_since, next_payment_date) = ${currentDate}::date)::integer as due_today,
-        count(*) filter (where coalesce(interest_due_since, next_payment_date) < ${currentDate}::date)::integer as overdue,
-        coalesce(sum(current_principal), 0) as principal, coalesce(sum(accrued_interest), 0) as interest
-      from loans where status = 'active'
-    `;
-    return [`<b>📊 Loan summary</b>`, `Active loans: <b>${row.active}</b>`, `Due today: <b>${row.due_today}</b>`, `Overdue: <b>${row.overdue}</b>`, `Principal: <b>${money(Number(row.principal))}</b>`, `Accrued interest: <b>${money(Number(row.interest))}</b>`].join("\n");
+    const due = loans.filter(l => l.days === 0), overdue = loans.filter(l => l.days < 0), upcoming = loans.filter(l => l.days > 0 && l.days <= 3);
+    const interest = (items: typeof loans) => money(items.reduce((sum,l) => sum + l.interest, 0));
+    return ["<b>📊 Loan summary</b>", `Active loans: ${loans.length}`, `Due today: ${due.length} · Interest: <b>${interest(due)}</b>`, `Overdue: ${overdue.length} · Unpaid interest: <b>${interest(overdue)}</b>`, `Due within 3 days: ${upcoming.length} · Interest: <b>${interest(upcoming)}</b>`, `Principal remaining: <b>${money(loans.reduce((sum,l) => sum + l.principal, 0))}</b>`].join("\n");
   }
-  return ["<b>KamJey loan tracker</b>", "/today — payments due today", "/overdue — overdue loans", "/upcoming — due in 7 days", "/loan KJ-0001 — one loan", "/borrower name — search borrowers", "/summary — portfolio totals", "/help — this list"].join("\n");
+  matches.sort((a,b) => a.days - b.days || a.loanNumber - b.loanNumber);
+  return `<b>${heading}</b>\n\n` + (matches.length ? matches.map(l => `${collectionLoanDetails(l)}\nPrincipal + interest: <b>${money(l.principal + l.interest)}</b>`).join("\n\n") : "No matching active loans.");
 }
 
 export async function POST(request: NextRequest) {

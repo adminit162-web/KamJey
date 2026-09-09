@@ -3,7 +3,7 @@ type TelegramMessage = {
   text: string;
 };
 
-type TelegramError = { description?: string };
+type TelegramError = { description?: string; parameters?: { retry_after?: number } };
 
 const TELEGRAM_TEXT_LIMIT = 4096;
 const RETRY_DELAYS_MS = [0, 500, 1500];
@@ -28,7 +28,7 @@ function splitTelegramText(text: string) {
 
 async function telegramError(response: Response) {
   const body = await response.json().catch(() => ({})) as TelegramError;
-  return body.description || `HTTP ${response.status}`;
+  return { message: body.description || `HTTP ${response.status}`, retryAfter: body.parameters?.retry_after };
 }
 
 async function postTelegram(method: string, body: BodyInit, headers?: HeadersInit) {
@@ -39,9 +39,14 @@ async function postTelegram(method: string, body: BodyInit, headers?: HeadersIni
   for (const delay of RETRY_DELAYS_MS) {
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
     try {
-      const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, { method: "POST", headers, body });
+      const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, { method: "POST", headers, body, signal: AbortSignal.timeout(15000) });
       if (response.ok) return;
-      lastError = await telegramError(response);
+      const error = await telegramError(response);
+      lastError = error.message;
+      if (response.status === 429 && error.retryAfter) {
+        if (error.retryAfter > 30) break;
+        await new Promise(resolve => setTimeout(resolve, error.retryAfter! * 1000));
+      }
       if (response.status < 500 && response.status !== 429) break;
     } catch (error) {
       lastError = error instanceof Error ? error.message : "Network request failed";

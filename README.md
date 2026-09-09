@@ -17,10 +17,16 @@ Run `db/schema.sql` in the Supabase SQL editor after pulling schema changes. The
 1. Create a bot with [@BotFather](https://t.me/BotFather) and copy its token.
 2. Copy `.env.example` to `.env.local`, then add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`, and a long `CRON_SECRET`. Never paste the bot token into chat or commit `.env.local`.
 3. Send a message to your bot, then use Telegram's `getUpdates` endpoint to find your `chat.id`.
-4. Vercel runs the configured daily GET request to `/api/reminders` at 08:00 Cambodia time with `Authorization: Bearer <CRON_SECRET>`.
+4. Vercel schedules the daily GET request to `/api/reminders` for 08:00 Cambodia time with `Authorization: Bearer <CRON_SECRET>`. Actual invocation time depends on the hosting plan.
 5. Run `db/schema.sql` after pulling changes. It adds delivery status and retry logs without removing existing records.
 
-The daily run sends a portfolio summary plus reminders 3 days before, on the due date, 1 day overdue, and every 3 days afterward. Failed deliveries are retried on the next run and simultaneous runs cannot send the same reminder twice.
+The daily run sends one collection report grouped into due today, due within the next 3 days, and overdue. Each loan appears once, with remaining principal, interest to collect, and days overdue when applicable. The report includes interest totals for each group. Individual reminders and the previous portfolio summary are no longer sent. Commands retain their existing names; `/upcoming` still covers 7 days.
+
+Apply `db/migrations/20260909_telegram_collection.sql` before deploying this version (also included in `db/schema.sql`). Reports are saved by Cambodia calendar date. Successful parts are checkpointed; a failed same-day run resumes unsent parts, and concurrent or completed runs are skipped. Temporary Telegram failures are retried up to three times per request with bounded waits and timeouts. A missed day is replaced by the next day's fresh report, which still includes unpaid loans; old reports are not replayed. To retry sooner, rerun the Cron Job from Vercel. An ambiguous network failure after Telegram accepts a message can still cause a duplicate, because Telegram provides no idempotency key.
+
+Interest is projected through the current Cambodia date using the monthly loan rules, including unpaid balances and top-up adjustments. Reports and commands do not modify financial records. Principal is informational, not a required principal installment.
+
+Run the focused checks with `node --test tests/telegram-collection.mjs`.
 
 ### Telegram commands
 
