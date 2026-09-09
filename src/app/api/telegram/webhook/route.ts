@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendTelegramMessage } from "@/lib/telegram";
+import { telegramLoanLines } from "@/lib/telegram-loan-details";
 
 const TIME_ZONE = "Asia/Phnom_Penh";
 const money = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(amount);
-const escapeHtml = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 
 type TelegramUpdate = {
   message?: { text?: string; chat?: { id?: number | string } };
@@ -16,15 +16,6 @@ function today() {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function loanLines(rows: Record<string, unknown>[]) {
-  if (!rows.length) return "No matching active loans.";
-  return rows.map((row) => {
-    const due = String(row.alert_date).slice(0, 10).split("-").reverse().join("/");
-    const total = Number(row.current_principal) + Number(row.accrued_interest);
-    return `<b>KJ-${String(row.loan_number).padStart(4, "0")}</b> · ${escapeHtml(String(row.borrower))}\nDue: ${due} · Balance: <b>${money(total)}</b>`;
-  }).join("\n\n");
-}
-
 async function commandReply(text: string) {
   const sql = db();
   const currentDate = today();
@@ -32,34 +23,35 @@ async function commandReply(text: string) {
   const command = rawCommand.toLowerCase().split("@")[0];
   const baseQuery = sql`
     select l.loan_number, b.full_name as borrower, l.current_principal, l.accrued_interest,
-      coalesce(l.interest_due_since, l.next_payment_date) as alert_date
+      l.monthly_interest_rate, l.next_interest_adjustment,
+      to_char(coalesce(l.interest_due_since, l.next_payment_date), 'YYYY-MM-DD') as alert_date
     from loans l join borrowers b on b.id = l.borrower_id
     where l.status = 'active'
   `;
 
   if (command === "/today") {
     const rows = await sql`${baseQuery} and coalesce(l.interest_due_since, l.next_payment_date) = ${currentDate}::date order by l.loan_number`;
-    return `<b>⏰ Due today</b>\n\n${loanLines(rows)}`;
+    return `<b>⏰ Due today</b>\n\n${telegramLoanLines(rows)}`;
   }
   if (command === "/overdue") {
     const rows = await sql`${baseQuery} and coalesce(l.interest_due_since, l.next_payment_date) < ${currentDate}::date order by alert_date, l.loan_number`;
-    return `<b>🚨 Overdue loans</b>\n\n${loanLines(rows)}`;
+    return `<b>🚨 Overdue loans</b>\n\n${telegramLoanLines(rows)}`;
   }
   if (command === "/upcoming") {
     const rows = await sql`${baseQuery} and coalesce(l.interest_due_since, l.next_payment_date) > ${currentDate}::date and coalesce(l.interest_due_since, l.next_payment_date) <= ${currentDate}::date + 7 order by alert_date, l.loan_number`;
-    return `<b>📅 Due in the next 7 days</b>\n\n${loanLines(rows)}`;
+    return `<b>📅 Due in the next 7 days</b>\n\n${telegramLoanLines(rows)}`;
   }
   if (command === "/loan") {
     const number = Number(parts.join("").replace(/^kj-/i, ""));
     if (!Number.isInteger(number) || number <= 0) return "Use: /loan KJ-0001";
     const rows = await sql`${baseQuery} and l.loan_number = ${number}`;
-    return `<b>🔎 Loan details</b>\n\n${loanLines(rows)}`;
+    return `<b>🔎 Loan details</b>\n\n${telegramLoanLines(rows)}`;
   }
   if (command === "/borrower") {
     const name = parts.join(" ").trim();
     if (name.length < 2) return "Use: /borrower borrower name";
     const rows = await sql`${baseQuery} and b.full_name ilike ${`%${name}%`} order by l.loan_number limit 20`;
-    return `<b>🔎 Borrower search</b>\n\n${loanLines(rows)}`;
+    return `<b>🔎 Borrower search</b>\n\n${telegramLoanLines(rows)}`;
   }
   if (command === "/summary") {
     const [row] = await sql`
