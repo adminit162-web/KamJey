@@ -11,3 +11,5 @@ npm-debug.log*
 
 # macOS metadata
 .DS_Store
+.vercel
+.env*

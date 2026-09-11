@@ -7,6 +7,13 @@ export type Language = "en" | "km";
 type Variables = Record<string, string | number>;
 
 const km: Record<string, string> = {
+  "Adjust split": "កែសម្រួលការបែងចែក",
+  "Use automatic split": "ប្រើការបែងចែកស្វ័យប្រវត្តិ",
+  "The rest goes to principal.": "ចំនួនដែលនៅសល់ត្រូវកាត់ប្រាក់ដើម។",
+  "Upcoming interest due {date}: {amount}": "ការប្រាក់ដល់កំណត់ថ្ងៃទី {date}៖ {amount}",
+  "Early interest payment: {amount}": "ការប្រាក់បង់មុនកំណត់៖ {amount}",
+  "Your adjusted split will be saved. Early interest counts toward the displayed due date.": "ការបែងចែកដែលបានកែសម្រួលនឹងត្រូវរក្សាទុក។ ការប្រាក់បង់មុនកំណត់ត្រូវរាប់សម្រាប់ថ្ងៃកំណត់ដែលបានបង្ហាញ។",
+  "Check the split: interest must fit the payment and unpaid interest; principal cannot exceed the remaining balance.": "សូមពិនិត្យការបែងចែក៖ ការប្រាក់មិនអាចលើសចំនួនទូទាត់ និងការប្រាក់មិនទាន់បង់ទេ ហើយប្រាក់ដើមមិនអាចលើសសមតុល្យនៅសល់ទេ។",
   "Download PDF": "ទាញយក PDF", "Preparing PDF…": "កំពុងរៀបចំ PDF…",
   "Unable to download PDF. Please try again.": "មិនអាចទាញយក PDF បានទេ។ សូមព្យាយាមម្តងទៀត។",
   "Monthly interest": "ការប្រាក់ប្រចាំខែ",

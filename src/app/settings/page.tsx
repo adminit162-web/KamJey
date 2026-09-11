@@ -1,20 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useLanguage } from "../language-provider";
 import AccessSettings from "./access-settings";
-
-type Settings = { general: { currency: string; dateFormat: string; interestModel: string }; integrations: { telegram: boolean; adminChat: boolean; reminders: boolean }; security: { hashedPassword: boolean; sessionSecret: boolean; plaintextPassword: boolean } };
-
-export function LegacySettingsPage() {
-  const { t } = useLanguage();
-  const [settings, setSettings] = useState<Settings | null>(null); const [error, setError] = useState("");
-  useEffect(() => { fetch("/api/settings").then(async (response) => { const body = await response.json(); if (!response.ok) throw new Error(body.error); return body; }).then(setSettings).catch((reason: Error) => setError(reason.message)); }, []);
-  return <main className="route-page settings-page"><header className="route-header"><div><p className="eyebrow">{t("Configuration")}</p><h1>{t("Settings")}</h1><p>{t("Review application conventions, integrations, security and data tools.")}</p></div></header>{error && <p className="database-notice">{error}</p>}{settings ? <div className="settings-grid"><SettingsCard title={t("General")} copy={t("Current financial display and calculation conventions.")}><SettingRow label={t("Currency")} value={settings.general.currency}/><SettingRow label={t("Date format")} value={settings.general.dateFormat}/><SettingRow label={t("Interest model")} value={settings.general.interestModel}/></SettingsCard><SettingsCard title={t("Telegram reminders")} copy={t("Secrets remain protected on the server; only their status is shown.")}><StatusRow label={t("Bot token")} ready={settings.integrations.telegram}/><StatusRow label={t("Admin chat")} ready={settings.integrations.adminChat}/><StatusRow label={t("Cron protection")} ready={settings.integrations.reminders}/></SettingsCard><SettingsCard title={t("Security")} copy={t("Authentication configuration loaded from the deployment environment.")}><StatusRow label={t("Password hash")} ready={settings.security.hashedPassword}/><StatusRow label={t("Session signing")} ready={settings.security.sessionSecret}/>{settings.security.plaintextPassword && <div className="settings-warning"><strong>{t("Plaintext password enabled")}</strong><p>{t("Remove ADMIN_PASSWORD after confirming the password hash works.")}</p></div>}</SettingsCard><SettingsCard title={t("Data")} copy={t("Download a portable snapshot of current operational records.")}><a className="export-button" href="/api/export" download>↓ {t("Export loans and payments")}</a><p className="settings-help">{t("The JSON export includes borrowers, loans and payment history. Store it securely.")}</p></SettingsCard></div> : <p className="settings-loading">{t("Loading settings…")}</p>}</main>;
-}
-
-function SettingsCard({ title, copy, children }: { title: string; copy: string; children: React.ReactNode }) { return <section className="settings-card"><h2>{title}</h2><p>{copy}</p><div className="settings-rows">{children}</div></section>; }
-function SettingRow({ label, value }: { label: string; value: string }) { return <div className="setting-row"><span>{label}</span><strong>{value}</strong></div>; }
-function StatusRow({ label, ready }: { label: string; ready: boolean }) { const { t } = useLanguage(); return <div className="setting-row"><span>{label}</span><strong className={ready ? "config-ready" : "config-missing"}>{t(ready ? "Configured" : "Missing")}</strong></div>; }
 
 export default function SettingsPage() { return <AccessSettings />; }

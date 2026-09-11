@@ -48,3 +48,6 @@ The endpoint is intentionally protected and does not send messages without the c
 ## Telegram data backups
 
 Administrators can open Settings and send a timestamped JSON snapshot to `TELEGRAM_ADMIN_CHAT_ID`. The snapshot contains borrowers, loans, payments, top-ups, and reminder logs; password hashes are never included. Each attempted Telegram backup is recorded in `backup_logs`.
+
+### Adjusting payment splits
+Apply `db/migrations/20260911_payment_split.sql` (also included in `db/schema.sql`) before deploying. The payment form defaults to automatic allocation. “Adjust split” permits an explicit interest portion, covering accrued interest first and then the upcoming installment. Early payments retain their actual receipt date and store the upcoming due date and credit. When an early payment also reduces principal, the upcoming installment retains its pre-payment amount; following installments use the reduced principal. Editing an adjusted payment retains its interest portion; delete and re-record to change that portion. Existing closed-period edit/delete restrictions remain in place.

@@ -53,3 +53,11 @@ test('failed later part resumes without repeating acknowledged parts',async()=>{
   await deliverReportParts(['a','b','c'],progress,send,save);assert.deepEqual(sent,['a','b','c']);
   await deliverReportParts(['a','b','c'],progress,send,save);assert.deepEqual(sent,['a','b','c']);
 });
+test('prepaid installment does not become overdue or consume existing arrears', () => {
+  const prepaid={...row,current_principal:120,monthly_interest_rate:10,next_date:'2026-09-15',payment_day:15,next_interest_adjustment:-12};
+  const paid=project(prepaid,'2026-09-15');
+  assert.equal(paid.dueDate,'2026-10-15');
+  assert.equal(paid.interest,12);
+  const arrears=project({...prepaid,current_principal:100,accrued_interest:5,interest_date:'2026-08-15'},'2026-09-15');
+  assert.equal(arrears.interest,5);
+});

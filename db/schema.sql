@@ -175,7 +175,8 @@ begin
     and loan_row.current_principal > 0
     and loan_row.next_payment_date <= as_of loop
     if loan_row.accrued_interest = 0 then loan_row.interest_due_since := loan_row.next_payment_date; end if;
-    loan_row.accrued_interest := greatest(0, round(loan_row.accrued_interest + loan_row.current_principal * loan_row.monthly_interest_rate / 100 + loan_row.next_interest_adjustment, 2));
+    loan_row.accrued_interest := greatest(0, round(loan_row.accrued_interest + greatest(0, round(loan_row.current_principal * loan_row.monthly_interest_rate / 100 + loan_row.next_interest_adjustment, 2)), 2));
+    if loan_row.accrued_interest = 0 then loan_row.interest_due_since := null; end if;
     loan_row.next_interest_adjustment := 0;
     loan_row.next_payment_date := next_monthly_date(loan_row.next_payment_date, loan_row.payment_day);
   end loop;
@@ -191,3 +192,9 @@ $$;
 -- Preserve each day's report and progress so retries resume unsent parts.
 alter table public.telegram_delivery_logs add column if not exists message_parts jsonb not null default '[]'::jsonb;
 alter table public.telegram_delivery_logs add column if not exists sent_parts integer not null default 0;
+
+-- Store explicit splits and the upcoming installment credit for safe reversal.
+alter table payments add column if not exists split_adjusted boolean not null default false;
+alter table payments add column if not exists early_interest_amount numeric(14,2) not null default 0;
+alter table payments add column if not exists early_interest_due_date date;
+alter table payments add column if not exists interest_adjustment_delta numeric(14,2) not null default 0;

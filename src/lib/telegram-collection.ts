@@ -27,7 +27,7 @@ export function projectCollectionLoan(row: Record<string, unknown>, today: strin
   for (let cycles = 0; principal > 0 && next <= today; cycles++) {
     if (cycles >= 1200) throw new Error("Loan accrual exceeds supported date range.");
     if (accrued === 0) dueSince = next;
-    accrued = Math.max(0, round(accrued + principal * rate / 100 + adjustment));
+    accrued = Math.max(0, round(accrued + Math.max(0, round(principal * rate / 100 + adjustment))));
     adjustment = 0;
     next = nextMonth(next, Number(row.payment_day));
   }
