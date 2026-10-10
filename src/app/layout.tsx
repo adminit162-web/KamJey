@@ -14,7 +14,7 @@ const kantumruyPro = localFont({
   weight: "100 700",
   variable: "--font-khmer",
   display: "swap",
-  fallback: ["DM Sans", "Noto Sans Khmer", "sans-serif"],
+  fallback: ["Poppins", "Noto Sans Khmer", "sans-serif"],
 });
 
 export const metadata: Metadata = {

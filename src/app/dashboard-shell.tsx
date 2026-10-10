@@ -50,8 +50,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     </header>
     {open && <button className="mobile-nav-overlay" aria-label={t("Close navigation")} onClick={() => setOpen(false)}/>}
     <aside className={`sidebar ${open ? "mobile-open" : ""}`}>
-      <div className="brand"><span className="brand-mark"><Image src="/kamjey-logo.png" alt="" width={31} height={31} priority /></span><span>KamJey</span><button className="mobile-close" onClick={() => setOpen(false)} aria-label={t("Close navigation")}>×</button></div>
-      <LanguageSwitcher />
+      <div className="brand"><span className="brand-mark"><Image src="/kamjey-logo.png" alt="" width={31} height={31} priority /></span><span>KamJey</span><LanguageSwitcher /><button className="mobile-close" onClick={() => setOpen(false)} aria-label={t("Close navigation")}>×</button></div>
       <nav>{navigation.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className={pathname === item.href ? "nav-item active" : "nav-item"}><span className="nav-icon"><SidebarIcon name={item.icon} /></span>{t(item.label)}</Link>)}</nav>
       <div className="sidebar-bottom">
         {user?.role === "admin" && <Link href="/settings" onClick={() => setOpen(false)} className={pathname === "/settings" ? "nav-item active" : "nav-item"}><span className="nav-icon"><SidebarIcon name="settings" /></span>{t("Settings")}</Link>}

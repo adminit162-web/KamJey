@@ -769,3 +769,21 @@
   .portfolio-download-controls { width: 100%; margin-left: 0; flex-wrap: wrap; }
   .portfolio-download-controls .portfolio-search { flex-basis: 180px; }
 }
+
+.management-split { margin: -24px 0 42px; padding: 22px; border: 1px solid #e3e9ed; border-radius: 14px; background: #fff; }
+.management-split-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+.management-split-cards button { display: grid; gap: 10px; padding: 16px 18px; border: 1px solid #e2e8ec; border-radius: 12px; background: #f7fafb; color: #263f53; font: inherit; text-align: left; cursor: pointer; }
+.management-split-cards button:hover { border-color: #b8c8d3; }
+.management-split-cards button.active { border-color: #294f69; background: #eef4f8; box-shadow: inset 0 0 0 1px #294f69; }
+.management-name { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 15px; font-weight: 700; }
+.management-name small { color: #697986; font-size: 12px; font-weight: 600; }
+.management-split-cards strong { color: #19364c; font-size: 24px; letter-spacing: -.5px; }
+.management-share { height: 6px; overflow: hidden; border-radius: 99px; background: #e2e8ec; }
+.management-share i { display: block; height: 100%; border-radius: inherit; background: #294f69; }
+.management-details { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; color: #697986; font-size: 12px; }
+.management-details b { color: #263f53; }
+
+@media(max-width:800px) {
+  .management-split { margin-top: -14px; }
+  .management-split-cards { grid-template-columns: 1fr; }
+}
