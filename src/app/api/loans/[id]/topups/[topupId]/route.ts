@@ -64,7 +64,7 @@ export async function DELETE(_request: NextRequest, context: Context) {
       if (currentPrincipal < 0) throw new Error("This top-up cannot be deleted because payments already depend on it.");
       const adjustment = Number(topup.partial_interest) - Number(topup.amount) * Number(loan.monthly_interest_rate) / 100;
       await transaction`delete from loan_topups where id = ${topupId}::uuid`;
-      await transaction`update loans set current_principal = ${currentPrincipal}, next_interest_adjustment = next_interest_adjustment - ${adjustment}, status = case when ${currentPrincipal} = 0 and accrued_interest = 0 then 'paid' else 'active' end where id = ${id}::uuid`;
+      await transaction`update loans set current_principal = ${currentPrincipal}, next_interest_adjustment = next_interest_adjustment - ${adjustment}, status = case when ${currentPrincipal}::numeric = 0 and accrued_interest = 0 then 'paid' else 'active' end where id = ${id}::uuid`;
     });
     return NextResponse.json({ ok: true });
   } catch (error) {

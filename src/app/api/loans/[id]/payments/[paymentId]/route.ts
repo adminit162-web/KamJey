@@ -51,7 +51,7 @@ export async function PATCH(request: NextRequest, context: Context) {
       const restoredAdjustment = cents(Number(loan.next_interest_adjustment) + Number(payment.interest_adjustment_delta));
       const upcoming = paidAt < periodEnd ? Math.max(0, cents(restoredPrincipal * Number(loan.monthly_interest_rate) / 100 + restoredAdjustment)) : 0;
       // Existing adjusted payments retain the explicit interest portion when edited.
-      const split = allocatePayment(amount, restoredPrincipal, restoredInterest, payment.split_adjusted ? upcoming : 0, Number(loan.monthly_interest_rate), payment.split_adjusted ? Number(payment.interest_amount) : undefined);
+      const split = allocatePayment(amount, restoredPrincipal, restoredInterest, upcoming, Number(loan.monthly_interest_rate), payment.split_adjusted ? Number(payment.interest_amount) : undefined);
       const interestAmount = split.interest;
       const principalAmount = split.principalAmount;
       const currentPrincipal = cents(restoredPrincipal - principalAmount);
@@ -59,7 +59,7 @@ export async function PATCH(request: NextRequest, context: Context) {
       const interestDueSince = accruedInterest === 0 ? null : loan.interest_due_since ? sqlDate(loan.interest_due_since) : periodStart;
 
       const [record] = await transaction`update payments set early_interest_amount = ${split.earlyInterest}, early_interest_due_date = ${split.earlyInterest > 0 ? periodEnd : null}::date, interest_adjustment_delta = ${split.adjustmentDelta}, amount = ${amount}, interest_amount = ${interestAmount}, principal_amount = ${principalAmount}, paid_at = ${paidAt}, method = ${method}, note = ${note} where id = ${paymentId}::uuid returning id, amount, interest_amount, principal_amount, paid_at, method, note`;
-      await transaction`update loans set next_interest_adjustment = ${restoredAdjustment - split.adjustmentDelta}, current_principal = ${currentPrincipal}, accrued_interest = ${accruedInterest}, interest_due_since = ${interestDueSince}::date, status = case when ${currentPrincipal} = 0 and ${accruedInterest} = 0 then 'paid' else 'active' end where id = ${id}::uuid`;
+      await transaction`update loans set next_interest_adjustment = ${restoredAdjustment - split.adjustmentDelta}, current_principal = ${currentPrincipal}, accrued_interest = ${accruedInterest}, interest_due_since = ${interestDueSince}::date, status = case when ${currentPrincipal}::numeric = 0 and ${accruedInterest}::numeric = 0 then 'paid' else 'active' end where id = ${id}::uuid`;
       return record;
     });
 
@@ -92,7 +92,7 @@ export async function DELETE(_request: NextRequest, context: Context) {
       const accruedInterest = cents(Number(loan.accrued_interest) + Number(payment.interest_amount) - Number(payment.early_interest_amount));
       const interestDueSince = accruedInterest === 0 ? null : loan.interest_due_since ? sqlDate(loan.interest_due_since) : periodStart;
       await transaction`delete from payments where id = ${paymentId}::uuid`;
-      await transaction`update loans set next_interest_adjustment = next_interest_adjustment + ${Number(payment.interest_adjustment_delta)}, current_principal = ${currentPrincipal}, accrued_interest = ${accruedInterest}, interest_due_since = ${interestDueSince}::date, status = case when ${currentPrincipal} = 0 and ${accruedInterest} = 0 then 'paid' else 'active' end where id = ${id}::uuid`;
+      await transaction`update loans set next_interest_adjustment = next_interest_adjustment + ${Number(payment.interest_adjustment_delta)}, current_principal = ${currentPrincipal}, accrued_interest = ${accruedInterest}, interest_due_since = ${interestDueSince}::date, status = case when ${currentPrincipal}::numeric = 0 and ${accruedInterest}::numeric = 0 then 'paid' else 'active' end where id = ${id}::uuid`;
     });
 
     return NextResponse.json({ ok: true });

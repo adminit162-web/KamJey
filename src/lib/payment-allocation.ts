@@ -1,9 +1,10 @@
 const cents = (value: number) => Math.round(value * 100) / 100;
 
-// Upcoming interest is fixed for this installment when explicitly paid early.
+// Upcoming interest is fixed for this installment when paid early.
 // Later installments continue using the remaining principal as before.
+// The automatic split pays overdue interest first; with nothing overdue it pays upcoming interest first.
 export function allocatePayment(amount: number, principal: number, accrued: number, upcoming: number, rate: number, override?: number) {
-  const interest = override === undefined ? Math.min(amount, accrued) : cents(override);
+  const interest = override === undefined ? Math.min(amount, accrued > 0 ? accrued : upcoming) : cents(override);
   if (!Number.isFinite(interest) || interest < 0 || interest > amount || interest > cents(accrued + upcoming)) {
     throw new Error("Interest must be between zero and the unpaid interest, and cannot exceed the payment.");
   }

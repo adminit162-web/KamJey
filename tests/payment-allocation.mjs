@@ -5,9 +5,21 @@ import ts from 'typescript';
 const output = ts.transpileModule(fs.readFileSync('src/lib/payment-allocation.ts', 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
 const exports = {}; new Function('exports', output)(exports);
 const {allocatePayment: split} = exports;
-test('automatic early payments still reduce principal', () => {
-  assert.equal(split(12,120,0,0,10).principalAmount,12);
-  assert.equal(split(32,120,12,0,10).interest,12);
+test('automatic early payments pay upcoming interest before principal', () => {
+  const partial=split(5,120,0,12,10);
+  assert.equal(partial.interest,5);
+  assert.equal(partial.principalAmount,0);
+  assert.equal(12-partial.adjustmentDelta,7);
+  const extra=split(32,120,0,12,10);
+  assert.equal(extra.interest,12);
+  assert.equal(extra.principalAmount,20);
+});
+test('automatic payments with overdue interest pay only the overdue interest first', () => {
+  const s=split(32,120,12,12,10);
+  assert.equal(s.interest,12);
+  assert.equal(s.principalAmount,20);
+  assert.equal(s.earlyInterest,0);
+  assert.equal(split(42,1150,57.5,57.5,5).accruedAfter,15.5);
 });
 test('early interest leaves principal intact and clears upcoming interest', () => {
   const s=split(12,120,0,12,10,12);
