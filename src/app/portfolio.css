@@ -345,6 +345,17 @@
   color: #166534;
 }
 
+.portfolio-status small.unpaid-months {
+  color: #a74132;
+  font-weight: 700;
+}
+
+.portfolio-status .status-pill.partly-paid {
+  border: 1px solid #fdba74;
+  background: #ffedd5;
+  color: #9a3412;
+}
+
 .portfolio-status .status-pill.not-due {
   border: 1px solid #bfd7ee;
   background: #e8f1fb;

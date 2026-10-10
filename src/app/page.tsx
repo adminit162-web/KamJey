@@ -7,7 +7,7 @@ type LoanStatus = "Due soon" | "Active" | "Overdue" | "Paid";
 type LoanFilter = "All" | "Needs attention" | "Monthly payments" | "Paid off";
 type Management = "Manith" | "Linda";
 type ManagementFilter = "All management" | Management;
-type MonthlyStatus = "Paid this month" | "Paid off" | "Unpaid" | "Not due yet";
+type MonthlyStatus = "Paid this month" | "Partly paid" | "Paid off" | "Unpaid" | "Not due yet";
 type BorrowingTopup = { amount: number; toppedUpAt: string };
 type Loan = {
   id: string; loanNumber: number; borrower: string; management: Management; initials: string; color: string;
@@ -19,7 +19,7 @@ type Loan = {
   periodOpeningPrincipal: number; periodClosingPrincipal: number; periodTopups: number; periodTopupInterest: number;
   totalTopups: number; topupHistory: BorrowingTopup[]; status: LoanStatus;
 };
-type MonthlyLoan = Loan & { monthlyStatus: MonthlyStatus; periodDueDate: string; newInPeriod: boolean };
+type MonthlyLoan = Loan & { monthlyStatus: MonthlyStatus; periodDueDate: string; newInPeriod: boolean; interestStillOwed: number; interestOwedNow: boolean; unpaidMonths: number };
 type Payment = { id: string; amount: number; interestAmount: number; principalAmount: number; paidAt: string; method: string | null; note: string | null };
 type Topup = { id: string; amount: number; toppedUpAt: string; partialInterest: number; principalBefore: number; principalAfter: number; note: string | null };
 
@@ -46,6 +46,20 @@ const dateDays = (later: string, earlier: string) => Math.round((Date.parse(`${l
 const fullMonthInterest = (loan: Loan) => Math.round(loan.currentPrincipal * loan.rate) / 100;
 const scheduledInterest = (loan: Loan) => Math.max(0, Math.round((fullMonthInterest(loan) + loan.nextInterestAdjustment) * 100) / 100);
 const displayedInterestDue = (loan: Loan) => loan.accruedInterest > 0 ? loan.accruedInterest : scheduledInterest(loan);
+// Counts the monthly due dates whose interest is still unpaid on the given date.
+const unpaidInterestMonths = (loan: Loan, onDate: string) => {
+  let accrued = loan.accruedInterest; let adjustment = loan.nextInterestAdjustment;
+  let dueSince = accrued > 0 && loan.interestDueSince ? loan.interestDueSince.slice(0, 10) : null;
+  for (let next = loan.nextPayment.slice(0, 10), cycles = 0; loan.currentPrincipal > 0 && next <= onDate && cycles < 1200; next = nextMonthlyDate(next, loan.paymentDay), cycles += 1) {
+    if (accrued === 0) dueSince = next;
+    accrued = Math.max(0, Math.round((accrued + Math.max(0, Math.round((loan.currentPrincipal * loan.rate / 100 + adjustment) * 100) / 100)) * 100) / 100);
+    adjustment = 0;
+  }
+  if (accrued <= 0 || !dueSince) return 0;
+  let months = 0;
+  for (let due = dueSince; due <= onDate && months < 1200; due = nextMonthlyDate(due, loan.paymentDay)) months += 1;
+  return months;
+};
 const projectedInterest = (loan: Loan, paymentDate: string) => { let interest = loan.accruedInterest; let anniversary = loan.nextPayment.slice(0, 10); let adjustment = loan.nextInterestAdjustment; let cycles = 0; while (anniversary <= paymentDate && cycles < 1200) { interest = Math.max(0, Math.round((interest + Math.max(0, Math.round((loan.currentPrincipal * loan.rate / 100 + adjustment) * 100) / 100)) * 100) / 100); adjustment = 0; anniversary = nextMonthlyDate(anniversary, loan.paymentDay); cycles += 1; } return interest; };
 
 function mapLoan(record: Record<string, unknown>, index: number): Loan {
@@ -138,11 +152,16 @@ export default function Home() {
     const firstDueDate = nextMonthlyDate(loan.start.slice(0, 10), loan.paymentDay);
     const newInPeriod = loan.start.slice(0, 10) >= periodStart && loan.start.slice(0, 10) < periodEnd;
     const paidOffInPeriod = loan.periodClosingPrincipal <= 0 && loan.periodPrincipalPaid > 0;
-    const monthlyStatus: MonthlyStatus = paidOffInPeriod ? "Paid off" : loan.periodPaid > 0 ? "Paid this month" : firstDueDate <= reportDate && periodDueDate <= reportDate ? "Unpaid" : "Not due yet";
-    return { ...loan, monthlyStatus, periodDueDate, newInPeriod };
+    // Interest left after a partial payment is only known for the current month.
+    const owedNow = selectedMonth === localMonth() ? projectedInterest(loan, reportDate) : 0;
+    const earlyRemainder = selectedMonth === localMonth() && loan.nextPayment.slice(0, 10) > reportDate && loan.nextPayment.slice(0, 7) === selectedMonth && loan.nextInterestAdjustment < 0 && loan.periodInterestPaid > 0 ? scheduledInterest(loan) : 0;
+    const interestStillOwed = owedNow > 0 ? owedNow : earlyRemainder;
+    const monthlyStatus: MonthlyStatus = paidOffInPeriod ? "Paid off" : loan.periodPaid > 0 ? (interestStillOwed > 0 ? "Partly paid" : "Paid this month") : firstDueDate <= reportDate && periodDueDate <= reportDate ? "Unpaid" : "Not due yet";
+    return { ...loan, monthlyStatus, periodDueDate, newInPeriod, interestStillOwed, interestOwedNow: owedNow > 0, unpaidMonths: selectedMonth === localMonth() ? unpaidInterestMonths(loan, reportDate) : 0 };
   });
   const statuses = {
     paid: monthlyLoans.filter((loan) => loan.monthlyStatus === "Paid this month").length,
+    partlyPaid: monthlyLoans.filter((loan) => loan.monthlyStatus === "Partly paid").length,
     unpaid: monthlyLoans.filter((loan) => loan.monthlyStatus === "Unpaid").length,
     notDue: monthlyLoans.filter((loan) => loan.monthlyStatus === "Not due yet").length,
     paidOff: monthlyLoans.filter((loan) => loan.monthlyStatus === "Paid off").length,
@@ -163,7 +182,7 @@ export default function Home() {
   const query = loanSearch.trim().toLowerCase();
   const visibleLoans = monthlyLoans.filter((loan) => {
     const matchesSearch = !query || loan.borrower.toLowerCase().includes(query) || `kj-${String(loan.loanNumber).padStart(4, "0")}`.includes(query);
-    const matchesFilter = loanFilter === "All" || loanFilter === "Needs attention" && loan.monthlyStatus === "Unpaid" || loanFilter === "Monthly payments" && loan.periodPaid > 0 || loanFilter === "Paid off" && loan.monthlyStatus === "Paid off";
+    const matchesFilter = loanFilter === "All" || loanFilter === "Needs attention" && (loan.monthlyStatus === "Unpaid" || loan.monthlyStatus === "Partly paid") || loanFilter === "Monthly payments" && loan.periodPaid > 0 || loanFilter === "Paid off" && loan.monthlyStatus === "Paid off";
     const matchesManagement = managementFilter === "All management" || loan.management === managementFilter;
     return matchesSearch && matchesFilter && matchesManagement;
   });
@@ -354,7 +373,7 @@ export default function Home() {
       <section className="dashboard-report-bar"><div><span>{t("Monthly overview")}</span><strong>{selectedMonthLabel}</strong><small>{t("Data through {date}", { date: reportDateLabel })}</small></div><div className="portfolio-period dashboard-period" aria-label={t("Report month")}><button type="button" onClick={() => selectedMonthIndex < monthOptions.length - 1 && setSelectedMonth(monthOptions[selectedMonthIndex + 1])} disabled={selectedMonthIndex === monthOptions.length - 1} aria-label={t("Previous month")}>‹</button><label><span>{t("Report month")}</span><select value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>{monthOptions.map((month) => <option key={month} value={month}>{readableMonth(`${month}-01`, locale)}</option>)}</select></label><button type="button" onClick={() => selectedMonthIndex > 0 && setSelectedMonth(monthOptions[selectedMonthIndex - 1])} disabled={selectedMonthIndex === 0} aria-label={t("Next month")}>›</button>{selectedMonth !== monthOptions[0] && <button type="button" className="portfolio-current-month" onClick={() => setSelectedMonth(monthOptions[0])}>{t("Current month")}</button>}</div></section>
       <div className="analytics-grid">
         <ReceivableCard title={t("Collected in {month}", { month: selectedMonthLabel })} copy={t("Payments recorded during this month.")} totalLabel={t("Total received")} total={money(totals.received)} principalLabel={t("Principal collected")} principal={money(totals.principalReceived)} interestLabel={t("Interest collected")} interest={money(totals.interestReceived)}/>
-        <DonutCard title={t("Payment status in {month}", { month: selectedMonthLabel })} copy={t("Status as of {date}", { date: reportDateLabel })} centerLabel={t("Loans in month")} centerValue={String(monthlyLoans.length)} segments={[{ label: t("Paid this month"), value: totals.statuses.paid, color: "#3f8b68" }, { label: t("Unpaid"), value: totals.statuses.unpaid, color: "#d95f4f" }, { label: t("Not due yet"), value: totals.statuses.notDue, color: "#e4a03c" }, { label: t("Paid off"), value: totals.statuses.paidOff, color: "#7890a3" }]}/>
+        <DonutCard title={t("Payment status in {month}", { month: selectedMonthLabel })} copy={t("Status as of {date}", { date: reportDateLabel })} centerLabel={t("Loans in month")} centerValue={String(monthlyLoans.length)} segments={[{ label: t("Paid this month"), value: totals.statuses.paid, color: "#3f8b68" }, { label: t("Partly paid"), value: totals.statuses.partlyPaid, color: "#c2410c" }, { label: t("Unpaid"), value: totals.statuses.unpaid, color: "#d95f4f" }, { label: t("Not due yet"), value: totals.statuses.notDue, color: "#e4a03c" }, { label: t("Paid off"), value: totals.statuses.paidOff, color: "#7890a3" }]}/>
         <div className="analytics-kpis"><Metric label={t("Closing principal")} value={money(totals.closingPrincipal)} detail={t("As of {date}", { date: reportDateLabel })}/><Metric label={t("Expected interest in {month}", { month: selectedMonthLabel })} value={money(totals.expectedInterest)} detail={t("Based on opening balances")}/><Metric label={t("Funds issued in {month}", { month: selectedMonthLabel })} value={money(totals.fundsIssued)} detail={t("{count} new loan(s)", { count: totals.newLoans })}/></div>
       </div>
       <div className="section-heading portfolio-heading"><div><h2>{t("Loan activity in {month}", { month: selectedMonthLabel })}</h2><p>{t("Opening balances, payments and closing balances for the selected month.")}</p></div><span>{t("{shown} of {total} loans", { shown: visibleLoans.length, total: monthlyLoans.length })}</span></div>
@@ -365,14 +384,14 @@ export default function Home() {
         {visibleLoans.length ? visibleLoans.map((loan) => {
           const firstDueDate = nextMonthlyDate(loan.start.slice(0, 10), loan.paymentDay);
           const dueDate = firstDueDate > loan.periodDueDate ? firstDueDate : loan.periodDueDate;
-          const statusClass = loan.monthlyStatus === "Paid this month" ? "paid-month" : loan.monthlyStatus === "Paid off" ? "paid" : loan.monthlyStatus === "Unpaid" ? "overdue" : "not-due";
-          const statusDetail = loan.latestPeriodPaymentDate ? t("Last paid on {date}", { date: displayDate(loan.latestPeriodPaymentDate) }) : t("Due {date}", { date: displayDate(dueDate) });
+          const statusClass = loan.monthlyStatus === "Paid this month" ? "paid-month" : loan.monthlyStatus === "Partly paid" ? "partly-paid" : loan.monthlyStatus === "Paid off" ? "paid" : loan.monthlyStatus === "Unpaid" ? "overdue" : "not-due";
+          const statusDetail = loan.monthlyStatus === "Partly paid" ? (loan.interestOwedNow ? t("{amount} interest still owed", { amount: money(loan.interestStillOwed) }) : t("{amount} interest still due {date}", { amount: money(loan.interestStillOwed), date: displayDate(loan.nextPayment) })) : loan.latestPeriodPaymentDate ? t("Last paid on {date}", { date: displayDate(loan.latestPeriodPaymentDate) }) : t("Due {date}", { date: displayDate(dueDate) });
           const monthlyBreakdown = loan.periodPaid <= 0 ? t("No payment recorded") : loan.periodInterestPaid > 0 && loan.periodPrincipalPaid > 0 ? t("{principal} principal · {interest} interest", { principal: compactMoney(loan.periodPrincipalPaid), interest: compactMoney(loan.periodInterestPaid) }) : loan.periodPrincipalPaid > 0 ? t("{amount} principal", { amount: compactMoney(loan.periodPrincipalPaid) }) : t("{amount} interest", { amount: compactMoney(loan.periodInterestPaid) });
           const principalInterest = Math.round(loan.periodClosingPrincipal * loan.rate) / 100;
           return <article className="portfolio-row" key={loan.id}>
             <div className="portfolio-borrower"><div className={`avatar ${loan.color}`}>{loan.initials}</div><div><strong>{loan.borrower}</strong><small>KJ-{String(loan.loanNumber).padStart(4, "0")} · {loan.management}</small></div></div>
-            <div className="portfolio-balance"><strong>{money(loan.periodClosingPrincipal)}</strong><small>{t("{principal} principal · {interest} interest", { principal: compactMoney(loan.periodClosingPrincipal), interest: compactMoney(principalInterest) })}</small></div>
-            <div className="portfolio-status"><span className={`status-pill ${statusClass}`}>{loan.monthlyStatus === "Paid this month" ? t("Paid during {month}", { month: selectedMonthLabel }) : t(loan.monthlyStatus)}</span><small>{statusDetail}</small></div>
+            <div className="portfolio-balance"><strong>{money(loan.periodClosingPrincipal)}</strong><small>{t("{principal} principal · {interest} interest", { principal: compactMoney(loan.periodClosingPrincipal), interest: compactMoney(principalInterest) })}</small><small>{t("{rate}% / month", { rate: loan.rate })}</small></div>
+            <div className="portfolio-status"><span className={`status-pill ${statusClass}`}>{loan.monthlyStatus === "Paid this month" ? t("Paid during {month}", { month: selectedMonthLabel }) : t(loan.monthlyStatus)}</span><small>{statusDetail}</small>{loan.unpaidMonths > 0 && <small className="unpaid-months">{t(loan.unpaidMonths === 1 ? "1 month of interest unpaid" : "{months} months of interest unpaid", { months: loan.unpaidMonths })}</small>}</div>
             <div className="portfolio-month-payment"><strong>{money(loan.periodPaid)}</strong><small>{monthlyBreakdown}</small></div>
             <div className="portfolio-actions"><div className="split-action"><button type="button" className="action-button pay-action" disabled={loan.status === "Paid"} onClick={() => openPayment(loan)}>{t(loan.status === "Paid" ? "Paid" : "Pay")}</button><div className="more-actions"><button type="button" className="more-trigger" aria-label={`${t("Manage")} ${loan.borrower}`} aria-expanded={actionMenu === loan.id} onClick={() => setActionMenu((current) => current === loan.id ? null : loan.id)}><svg aria-hidden="true" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button>{actionMenu === loan.id && <div className="actions-menu"><button onClick={() => { setActionMenu(null); openHistory(loan); }}><span>↺</span><span><strong>{t("View history")}</strong><small>{t("{count} recorded activities", { count: loan.paymentCount + loan.topupHistory.length })}</small></span></button><button disabled={loan.status === "Paid"} onClick={() => { setActionMenu(null); openTopup(loan); }}><span>＋</span><span><strong>{t("Add funds")}</strong><small>{t("Increase this loan")}</small></span></button><button onClick={() => { setActionMenu(null); setEditError(""); setEditLoan(loan); }}><span>✎</span><span><strong>{t("Edit loan")}</strong><small>{t("Name, rate or due date")}</small></span></button><button className="menu-delete" onClick={() => { setActionMenu(null); deleteLoan(loan); }}><span>⌫</span><span><strong>{t("Delete loan")}</strong><small>{t("Remove loan and history")}</small></span></button></div>}</div></div></div>
           </article>;
