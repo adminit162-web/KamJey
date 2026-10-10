@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../language-provider";
+import { cambodiaToday } from "@/lib/dates";
 
 type LoanRecord = {
   id: string; loan_number: number; borrower: string; principal: string;
@@ -12,7 +13,7 @@ type LoanRecord = {
 
 const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
 const date = (value: string) => { const [year, month, day] = value.slice(0, 10).split("-"); return `${day}/${month}/${year.slice(-2)}`; };
-const viewStatus = (loan: LoanRecord) => loan.status === "paid" ? "Paid" : loan.interest_due_since && loan.interest_due_since.slice(0, 10) < new Date().toISOString().slice(0, 10) ? "Overdue" : "Active";
+const viewStatus = (loan: LoanRecord) => loan.status === "paid" ? "Paid" : loan.interest_due_since && loan.interest_due_since.slice(0, 10) < cambodiaToday() ? "Overdue" : "Active";
 const interestDue = (loan: LoanRecord) => {
   const accrued = Number(loan.accrued_interest);
   if (accrued > 0) return accrued;

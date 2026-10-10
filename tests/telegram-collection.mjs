@@ -6,7 +6,8 @@ function load(path) {
   const output = ts.transpileModule(fs.readFileSync(path, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {}; new Function('exports', output)(exports); return exports;
 }
-const { projectCollectionLoan: project, collectionReportParts: report, cambodiaToday } = load('src/lib/telegram-collection.ts');
+const { projectCollectionLoan: project, collectionReportParts: report } = load('src/lib/telegram-collection.ts');
+const { cambodiaToday } = load('src/lib/dates.ts');
 const { deliverReportParts } = load('src/lib/telegram-report-delivery.ts');
 const row = { id:'1', loan_number:1, borrower:'A & <B>', current_principal:400, accrued_interest:0, monthly_interest_rate:7, next_interest_adjustment:0, payment_day:10, next_date:'2026-09-10', interest_date:null };
 test('Cambodia midnight and three-day boundary', () => {

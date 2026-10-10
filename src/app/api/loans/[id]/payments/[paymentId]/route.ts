@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { allocatePayment } from "@/lib/payment-allocation";
+import { allocatePayment, oldestUnpaidDueDate } from "@/lib/payment-allocation";
+import { cambodiaToday } from "@/lib/dates";
 import { db } from "@/lib/db";
 
 const validId = (value: string) => /^[0-9a-f-]{36}$/i.test(value);
@@ -23,13 +24,13 @@ export async function PATCH(request: NextRequest, context: Context) {
     const paidAt = String(body.paidAt || "");
     const method = String(body.method || "").trim().slice(0, 60) || null;
     const note = String(body.note || "").trim().slice(0, 240) || null;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = cambodiaToday();
     if (!validId(id) || !validId(paymentId) || !Number.isFinite(amount) || amount <= 0 || !validDate(paidAt) || paidAt > today) {
       return NextResponse.json({ error: "Please provide a valid amount and date." }, { status: 400 });
     }
 
     const updated = await db().begin(async (transaction) => {
-      const [loan] = await transaction`select current_principal, accrued_interest, monthly_interest_rate, next_interest_adjustment, interest_due_since, next_payment_date, payment_day, previous_monthly_date(next_payment_date, payment_day) as period_start from loans where id = ${id}::uuid for update`;
+      const [loan] = await transaction`select current_principal, accrued_interest, monthly_interest_rate, next_interest_adjustment, interest_due_since, next_payment_date, payment_day, previous_monthly_date(next_payment_date, payment_day) as period_start, next_monthly_date(start_date, payment_day) as first_due from loans where id = ${id}::uuid for update`;
       const [payment] = await transaction`select id, amount, interest_amount, principal_amount, paid_at, split_adjusted, early_interest_amount, early_interest_due_date, interest_adjustment_delta from payments where id = ${paymentId}::uuid and loan_id = ${id}::uuid for update`;
       if (!loan || !payment) throw new Error("Payment not found.");
 
@@ -56,7 +57,7 @@ export async function PATCH(request: NextRequest, context: Context) {
       const principalAmount = split.principalAmount;
       const currentPrincipal = cents(restoredPrincipal - principalAmount);
       const accruedInterest = split.accruedAfter;
-      const interestDueSince = accruedInterest === 0 ? null : loan.interest_due_since ? sqlDate(loan.interest_due_since) : periodStart;
+      const interestDueSince = oldestUnpaidDueDate(accruedInterest, cents(restoredPrincipal * Number(loan.monthly_interest_rate) / 100), sqlDate(loan.next_payment_date), Number(loan.payment_day), sqlDate(loan.first_due));
 
       const [record] = await transaction`update payments set early_interest_amount = ${split.earlyInterest}, early_interest_due_date = ${split.earlyInterest > 0 ? periodEnd : null}::date, interest_adjustment_delta = ${split.adjustmentDelta}, amount = ${amount}, interest_amount = ${interestAmount}, principal_amount = ${principalAmount}, paid_at = ${paidAt}, method = ${method}, note = ${note} where id = ${paymentId}::uuid returning id, amount, interest_amount, principal_amount, paid_at, method, note`;
       await transaction`update loans set next_interest_adjustment = ${restoredAdjustment - split.adjustmentDelta}, current_principal = ${currentPrincipal}, accrued_interest = ${accruedInterest}, interest_due_since = ${interestDueSince}::date, status = case when ${currentPrincipal}::numeric = 0 and ${accruedInterest}::numeric = 0 then 'paid' else 'active' end where id = ${id}::uuid`;
@@ -76,7 +77,7 @@ export async function DELETE(_request: NextRequest, context: Context) {
     if (!validId(id) || !validId(paymentId)) return NextResponse.json({ error: "Invalid payment." }, { status: 400 });
 
     await db().begin(async (transaction) => {
-      const [loan] = await transaction`select current_principal, accrued_interest, monthly_interest_rate, next_interest_adjustment, interest_due_since, next_payment_date, payment_day, previous_monthly_date(next_payment_date, payment_day) as period_start from loans where id = ${id}::uuid for update`;
+      const [loan] = await transaction`select current_principal, accrued_interest, monthly_interest_rate, next_interest_adjustment, interest_due_since, next_payment_date, payment_day, previous_monthly_date(next_payment_date, payment_day) as period_start, next_monthly_date(start_date, payment_day) as first_due from loans where id = ${id}::uuid for update`;
       const [payment] = await transaction`select id, interest_amount, principal_amount, paid_at, split_adjusted, early_interest_amount, early_interest_due_date, interest_adjustment_delta from payments where id = ${paymentId}::uuid and loan_id = ${id}::uuid for update`;
       if (!loan || !payment) throw new Error("Payment not found.");
 
@@ -90,7 +91,7 @@ export async function DELETE(_request: NextRequest, context: Context) {
 
       const currentPrincipal = cents(Number(loan.current_principal) + Number(payment.principal_amount));
       const accruedInterest = cents(Number(loan.accrued_interest) + Number(payment.interest_amount) - Number(payment.early_interest_amount));
-      const interestDueSince = accruedInterest === 0 ? null : loan.interest_due_since ? sqlDate(loan.interest_due_since) : periodStart;
+      const interestDueSince = oldestUnpaidDueDate(accruedInterest, cents(currentPrincipal * Number(loan.monthly_interest_rate) / 100), sqlDate(loan.next_payment_date), Number(loan.payment_day), sqlDate(loan.first_due));
       await transaction`delete from payments where id = ${paymentId}::uuid`;
       await transaction`update loans set next_interest_adjustment = next_interest_adjustment + ${Number(payment.interest_adjustment_delta)}, current_principal = ${currentPrincipal}, accrued_interest = ${accruedInterest}, interest_due_since = ${interestDueSince}::date, status = case when ${currentPrincipal}::numeric = 0 and ${accruedInterest}::numeric = 0 then 'paid' else 'active' end where id = ${id}::uuid`;
     });

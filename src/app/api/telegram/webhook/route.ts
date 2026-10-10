@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendTelegramMessage } from "@/lib/telegram";
-import { cambodiaToday, collectionLoanDetails, money } from "@/lib/telegram-collection";
+import { cambodiaToday } from "@/lib/dates";
+import { collectionLoanDetails, money } from "@/lib/telegram-collection";
 import { currentTelegramLoans } from "@/lib/telegram-collection-data";
 
 type TelegramUpdate = { message?: { text?: string; chat?: { id?: number | string } } };

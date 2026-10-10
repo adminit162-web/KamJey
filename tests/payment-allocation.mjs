@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import ts from 'typescript';
 const output = ts.transpileModule(fs.readFileSync('src/lib/payment-allocation.ts', 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
 const exports = {}; new Function('exports', output)(exports);
-const {allocatePayment: split} = exports;
+const {allocatePayment: split, oldestUnpaidDueDate: dueSince} = exports;
 test('automatic early payments pay upcoming interest before principal', () => {
   const partial=split(5,120,0,12,10);
   assert.equal(partial.interest,5);
@@ -47,4 +47,15 @@ test('arrears are paid before upcoming interest and repeated credits cannot dupl
 test('invalid splits cannot create negative balances', () => {
   for(const interest of [-1,13,NaN,Infinity]) assert.throws(()=>split(12,120,0,12,10,interest));
   assert.throws(()=>split(150,120,0,12,10,12));
+});
+
+test('paying the oldest months moves the unpaid date forward', () => {
+  // Owes Aug, Sep and Oct at $5 each; next due date is 3 Nov.
+  assert.equal(dueSince(15,5,'2026-11-03',3,'2026-08-03'),'2026-08-03');
+  assert.equal(dueSince(10,5,'2026-11-03',3,'2026-08-03'),'2026-09-03');
+  assert.equal(dueSince(3,5,'2026-11-03',3,'2026-08-03'),'2026-10-03');
+  assert.equal(dueSince(0,5,'2026-11-03',3,'2026-08-03'),null);
+  // Never earlier than the known oldest date, and short months use their last day.
+  assert.equal(dueSince(40,5,'2026-11-03',3,'2026-08-03'),'2026-08-03');
+  assert.equal(dueSince(5,5,'2026-03-31',31,null),'2026-02-28');
 });

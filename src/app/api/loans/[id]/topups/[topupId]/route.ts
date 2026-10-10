@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { cambodiaToday } from "@/lib/dates";
 
 const validId = (value: string) => /^[0-9a-f-]{36}$/i.test(value);
 const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -15,7 +16,7 @@ export async function PATCH(request: NextRequest, context: Context) {
     const amount = Math.round(Number(body.amount) * 100) / 100;
     const toppedUpAt = String(body.toppedUpAt || "");
     const note = String(body.note || "").trim().slice(0, 240) || null;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = cambodiaToday();
     if (!validId(id) || !validId(topupId) || !Number.isFinite(amount) || amount <= 0 || !validDate(toppedUpAt) || toppedUpAt > today) return NextResponse.json({ error: "Please provide a valid amount and date." }, { status: 400 });
 
     const updated = await db().begin(async (transaction) => {

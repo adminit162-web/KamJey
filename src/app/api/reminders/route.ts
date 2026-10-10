@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendTelegramMessage } from "@/lib/telegram";
-import { cambodiaToday, collectionReportParts } from "@/lib/telegram-collection";
+import { cambodiaToday } from "@/lib/dates";
+import { collectionReportParts } from "@/lib/telegram-collection";
 import { currentTelegramLoans } from "@/lib/telegram-collection-data";
 import { deliverReportParts } from "@/lib/telegram-report-delivery";
 

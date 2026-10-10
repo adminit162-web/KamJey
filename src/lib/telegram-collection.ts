@@ -5,10 +5,6 @@ export type CollectionLoan = {
 export const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 export const escapeHtml = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 export const displayDate = (value: string) => value.split("-").reverse().join("/");
-export function cambodiaToday(date = new Date()) {
-  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Phnom_Penh", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date).map(part => [part.type, part.value]));
-  return `${parts.year}-${parts.month}-${parts.day}`;
-}
 const round = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 function nextMonth(date: string, day: number) {
   const [year, month] = date.split("-").map(Number);
