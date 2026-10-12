@@ -532,34 +532,50 @@
   .donut-legend strong { grid-column: 2; }
 }
 
-@container (max-width: 1060px) {
-  .portfolio-table-head,
-  .portfolio-row {
-    grid-template-columns: minmax(170px, 1.15fr) minmax(210px, 1.2fr) minmax(165px, 1fr) minmax(125px, .75fr) 125px;
+/* Table layout on iPad and wider; columns shrink with the table so the actions stay inside. */
+@media (min-width: 701px) {
+  @container (max-width: 1060px) {
+    .portfolio-table-head,
+    .portfolio-row {
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, .8fr) 118px;
+      gap: 14px;
+    }
+
+    .portfolio-table-head { padding-inline: 16px; }
+    .portfolio-row { padding: 14px 16px; }
+    .portfolio-actions .pay-action { min-width: 72px; padding-inline: 10px; }
+    .portfolio-actions .more-trigger { width: 34px; }
+  }
+
+  /* iPad portrait / iPhone landscape: same table, tighter cells that wrap instead of overflowing. */
+  @container (max-width: 860px) {
+    .portfolio-table-head,
+    .portfolio-row {
+      gap: 10px;
+    }
+
+    .portfolio-table-head { padding-inline: 12px; }
+    .portfolio-table .portfolio-table-head > span { white-space: normal; }
+    .portfolio-row { padding: 14px 12px; }
+    .portfolio-borrower { gap: 8px; }
+    .portfolio-borrower .avatar { width: 34px; height: 34px; font-size: 11px; }
+    .portfolio-balance > strong { font-size: 15px; }
+    .portfolio-status .status-pill { max-width: 100%; white-space: normal; }
+    .portfolio-borrower strong { white-space: normal; overflow-wrap: anywhere; }
+    .portfolio-row .portfolio-status > small,
+    .portfolio-row .portfolio-month-payment strong,
+    .portfolio-row .portfolio-month-payment small,
+    .portfolio-row .portfolio-month-payment time { white-space: normal; }
   }
 }
 
-@container (max-width: 940px) {
+/* iPhone portrait: rows stack (see the 700px block below). */
+@media (max-width: 700px) {
   .portfolio-table-head {
     display: none;
   }
 
-  .portfolio-row {
-    grid-template-columns: 1fr 1fr;
-    gap: 18px 24px;
-    padding: 20px;
-  }
-
-  .portfolio-borrower {
-    grid-column: 1 / -1;
-  }
-
-.portfolio-status {
-    align-self: end;
-  }
-
   .portfolio-actions {
-    grid-column: 1 / -1;
     justify-content: flex-start;
     padding-top: 14px;
     border-top: 1px solid #e5ebef;
