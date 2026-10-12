@@ -189,6 +189,8 @@
   background: #fff;
   box-shadow: 0 5px 18px #263b4c08;
   overflow: visible;
+  /* Layout follows the table's own width, so the sidebar can't squeeze the actions out on iPad. */
+  container-type: inline-size;
 }
 
 .portfolio-table-head,
@@ -530,14 +532,14 @@
   .donut-legend strong { grid-column: 2; }
 }
 
-@media (max-width: 1280px) {
+@container (max-width: 1060px) {
   .portfolio-table-head,
   .portfolio-row {
     grid-template-columns: minmax(170px, 1.15fr) minmax(210px, 1.2fr) minmax(165px, 1fr) minmax(125px, .75fr) 125px;
   }
 }
 
-@media (max-width: 1100px) {
+@container (max-width: 940px) {
   .portfolio-table-head {
     display: none;
   }
