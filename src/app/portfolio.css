@@ -667,36 +667,45 @@
     grid-column: auto;
   }
 
+  /* Label each stacked field from its translated data-label. */
   .portfolio-balance,
-  .portfolio-next-payment,
-  .portfolio-due,
-  .portfolio-status {
+  .portfolio-status,
+  .portfolio-month-payment {
     display: grid;
-    grid-template-columns: 115px 1fr;
-    align-items: center;
+    grid-template-columns: minmax(92px, 34%) minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 0;
+    align-items: start;
+    padding-top: 14px;
+    border-top: 1px solid #edf1f4;
   }
 
-  .portfolio-balance::before { content: "Outstanding"; }
-  .portfolio-next-payment::before { content: "Next payment"; }
-  .portfolio-due::before { content: "Next interest payment"; }
-  .portfolio-status::before { content: "Status"; }
+  .portfolio-balance > *,
+  .portfolio-status > *,
+  .portfolio-month-payment > * {
+    grid-column: 2;
+    min-width: 0;
+  }
 
   .portfolio-balance::before,
-  .portfolio-next-payment::before,
-  .portfolio-due::before,
-  .portfolio-status::before {
+  .portfolio-status::before,
+  .portfolio-month-payment::before {
+    content: attr(data-label);
+    grid-column: 1;
+    grid-row: span 3;
+    padding-top: 2px;
     color: #71808c;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: .04em;
+    line-height: 1.35;
     text-transform: uppercase;
   }
 
-  .portfolio-balance small,
-  .portfolio-progress,
-  .portfolio-next-payment small,
-  .portfolio-due small {
-    grid-column: 2;
+  .portfolio-month-payment strong,
+  .portfolio-month-payment small,
+  .portfolio-status > small {
+    white-space: normal;
   }
 
   .portfolio-status .status-pill {

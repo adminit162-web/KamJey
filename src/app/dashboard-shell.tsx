@@ -59,6 +59,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </div>
     </aside>
     <section className="content">{children}</section>
-    <nav className="mobile-bottom-nav" aria-label={t("Main navigation")}>{navigation.map((item) => <Link key={item.href} href={item.href} className={pathname === item.href ? "active" : ""}><span className="mobile-bottom-icon"><SidebarIcon name={item.icon} /></span><span>{t(item.label)}</span></Link>)}</nav>
+    <nav className="mobile-bottom-nav" aria-label={t("Main navigation")}>{navigation.map((item) => <Link key={item.href} href={item.href} className={pathname === item.href ? "active" : ""}><span className="mobile-bottom-icon"><SidebarIcon name={item.icon} /></span><span>{t(item.label)}</span></Link>)}{user?.role === "admin" && <Link href="/settings" className={pathname === "/settings" ? "active" : ""}><span className="mobile-bottom-icon"><SidebarIcon name="settings" /></span><span>{t("Settings")}</span></Link>}</nav>
   </div>;
 }
